@@ -339,7 +339,15 @@ if uploaded_file:
     st.plotly_chart(plot_weekly(weekly_12m), use_container_width=True)
 
     st.markdown("## Analyse des styles")
-    st.plotly_chart(plot_styles(compute_styles_top20(df_12m)), use_container_width=True)
+
+    st.caption(
+        "Répartition des styles parmi les 20% des voies les plus difficiles sur les 12 derniers mois."
+    )
+
+    st.plotly_chart(
+        plot_styles(compute_styles_top20(df_12m)),
+        use_container_width=True
+    )
 
     # =========================================================
     # 🧠 COACH
@@ -356,12 +364,12 @@ if uploaded_file:
     with st.expander("📘 Échelle Arkose → Fontainebleau"):
 
         st.markdown(f"""
-| Niveau Arkose | Barre 1 | Barre 2 | Barre 3 | Barre 4 | Barre 5 |
-| ------------- | ------- | ------- | ------- | ------- | -------- |
-| {arkose_level_icon(1)} **1** | 3 | 3+ | 4A | 4A+ | 4B |
-| {arkose_level_icon(2)} **2** | 4B | 4C | 5A | 5A+ | 5B |
-| {arkose_level_icon(3)} **3** | 5A+ | 5B | 5B+ | 5C | 5C+ |
-| {arkose_level_icon(4)} **4** | 5C+ | 6A | 6A+ | 6B | 6B+ |
-| {arkose_level_icon(5)} **5** | 6B | 6B+ | 6C | 6C+ | 7A |
-| {arkose_level_icon(6)} **6** | 7A | 7A+ | 7B | 7B+ | 7C / 7C+ |
+| Niveau | Couleur | Barre 1 | Barre 2 | Barre 3 | Barre 4 | Barre 5 |
+| ------ | ------- | ------- | ------- | ------- | ------- | -------- |
+| 1 | 🟡 | 3 | 3+ | 4A | 4A+ | 4B |
+| 2 | 🟢 | 4B | 4C | 5A | 5A+ | 5B |
+| 3 | 🔵 | 5A+ | 5B | 5B+ | 5C | 5C+ |
+| 4 | 🔴 | 5C+ | 6A | 6A+ | 6B | 6B+ |
+| 5 | ⚫ | 6B | 6B+ | 6C | 6C+ | 7A |
+| 6 | 🟣 | 7A | 7A+ | 7B | 7B+ | 7C / 7C+ |
 """)
