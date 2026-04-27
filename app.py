@@ -244,35 +244,23 @@ if uploaded_file:
     best_all, best_flash = get_best_blocks(df_12m)
 
     # KPI
-    st.markdown("### Synthèse")
-
-    today = pd.Timestamp.today()
-    current_q = today.to_period("Q")
-    prev_q = current_q - 1
-
-    sessions_current = df_current_q["date"].dt.date.nunique()
-    sessions_previous = df_previous_q["date"].dt.date.nunique()
-
-    delta = sessions_current - sessions_previous if sessions_previous > 0 else 0
-    pct = (delta / sessions_previous * 100) if sessions_previous > 0 else 0
-
-    arrow = "↑" if delta >= 0 else "↓"
-
     col1, col2, col3 = st.columns(3)
 
-    col1.metric(
-        f"Séances T{current_q.quarter} {current_q.year}",
-        sessions_current,
-        f"{arrow} {delta:+} ({pct:.0f}%) vs T{prev_q.quarter} {prev_q.year}",
-        delta_color="normal"
-    )
+col1.metric(
+    f"Séances T{current_q.quarter} {current_q.year}",
+    sessions_current,
+    f"{delta:+} ({pct:.0f}%) vs T{prev_q.quarter}"
+)
 
-    col2.metric("Bloc le plus dur", int(best_all["grade_score"]))
+col2.metric(
+    "Bloc le plus dur (12 mois)",
+    int(best_all["grade_score"])
+)
 
-    col3.metric(
-        "Meilleur flash",
-        int(best_flash["grade_score"]) if best_flash is not None else "N/A"
-    )
+col3.metric(
+    "Meilleur flash (12 mois)",
+    int(best_flash["grade_score"]) if best_flash is not None else "N/A"
+)
 
     # Graphs
     st.markdown("## Volume de la semaine")
