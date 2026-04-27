@@ -7,6 +7,7 @@ import plotly.express as px
 # 🎯 CONFIG APP
 # =============================
 st.set_page_config(page_title="Arkose Analyste", layout="centered")
+
 st.title("Arkose Analyste")
 
 
@@ -14,7 +15,7 @@ st.title("Arkose Analyste")
 # 📂 UPLOAD
 # =============================
 uploaded_file = st.file_uploader(
-    "Importer ton fichier Arkose (Excel)",
+    "Importer ton fichier Arkose (Excel)", 
     type=["xlsx"]
 )
 
@@ -41,7 +42,7 @@ def clean_data(df):
 
 
 # =============================
-# 📅 TRIMESTRES (FAIR COMPARISON)
+# 📅 FILTRES TRIMESTRE (FAIR COMPARISON)
 # =============================
 def filter_current_quarter(df):
     today = pd.Timestamp.today()
@@ -78,6 +79,7 @@ def filter_last_12_months(df):
 # 📈 WEEKLY SCORE
 # =============================
 def compute_weekly_score(df):
+
     df = df.copy()
     df["week"] = df["date"].dt.to_period("W")
 
@@ -92,6 +94,107 @@ def compute_weekly_score(df):
 
 
 # =============================
+# 📊 STYLES TOP 20%
+# =============================
+def compute_styles_top20(df):
+
+    df = df.copy()
+
+    df = df.sort_values("grade_score", ascending=False)
+    top20 = df.head(int(len(df) * 0.2))
+
+    top20 = top20.dropna(subset=["styles"])
+
+    styles = top20["styles"].str.split("#").explode()
+    styles = styles.str.strip()
+    styles = styles[styles != ""]
+
+    style_counts = styles.value_counts().reset_index()
+    style_counts.columns = ["style", "count"]
+
+    return style_counts
+
+
+# =============================
+# 🏆 BEST BLOCKS (12M)
+# =============================
+def get_best_blocks(df):
+
+    best_all = df.loc[df["grade_score"].idxmax()]
+
+    df_flash = df[df["flashé"] == "Oui"]
+
+    if len(df_flash) > 0:
+        best_flash = df_flash.loc[df_flash["grade_score"].idxmax()]
+    else:
+        best_flash = None
+
+    return best_all, best_flash
+
+
+# =============================
+# 📈 GRAPH 1
+# =============================
+def plot_weekly(weekly):
+
+    fig = px.area(
+        weekly,
+        x="week",
+        y="total_score",
+        line_shape="spline"
+    )
+
+    fig.update_traces(line=dict(width=3), opacity=0.9)
+
+    fig.add_scatter(
+        x=weekly["week"],
+        y=weekly["moving_avg"],
+        mode="lines",
+        line=dict(width=2, dash="dash"),
+        name="Moyenne 4 semaines"
+    )
+
+    fig.update_layout(
+        template="simple_white",
+        yaxis_title="",
+        xaxis_title="",
+        showlegend=False,
+        hovermode="x unified",
+        margin=dict(l=10, r=10, t=10, b=10)
+    )
+
+    fig.update_xaxes(showgrid=False, tickformat="%b %y")
+    fig.update_yaxes(showgrid=True, gridcolor="rgba(0,0,0,0.05)")
+
+    return fig
+
+
+# =============================
+# 📊 GRAPH 2
+# =============================
+def plot_styles(style_counts):
+
+    fig = px.bar(
+        style_counts,
+        x="style",
+        y="count"
+    )
+
+    fig.update_layout(
+        template="simple_white",
+        xaxis_title="",
+        yaxis_title="",
+        showlegend=False,
+        margin=dict(l=10, r=10, t=40, b=10)
+    )
+
+    fig.update_xaxes(tickangle=45, showgrid=False)
+    fig.update_yaxes(showgrid=True, gridcolor="rgba(0,0,0,0.05)")
+
+    return fig
+
+
+# =============================
 # 🚀 APP
 # =============================
 if uploaded_file:
@@ -100,7 +203,7 @@ if uploaded_file:
     df = clean_data(df)
 
     # =============================
-    # 📅 DATASETS
+    # 📅 DATA
     # =============================
     df_current_q = filter_current_quarter(df)
     df_previous_q = filter_previous_quarter_same_period(df)
@@ -108,8 +211,10 @@ if uploaded_file:
 
     weekly_12m = compute_weekly_score(df_12m)
 
+    best_all, best_flash = get_best_blocks(df_12m)
+
     # =============================
-    # 📊 KPI SÉANCES
+    # 📊 KPI
     # =============================
     st.markdown("### Synthèse")
 
@@ -127,69 +232,60 @@ if uploaded_file:
         delta = 0
         pct = 0
 
-    arrow = "↑" if delta >= 0 else "↓"
-
     col1, col2, col3 = st.columns(3)
 
     col1.metric(
         f"Séances T{current_q.quarter} {current_q.year}",
         sessions_current,
-        f"{arrow} {delta:+} ({pct:.0f}%) vs T{prev_q.quarter} {prev_q.year}",
-        delta_color="normal"
+        f"{delta:+} ({pct:.0f}%) vs T{prev_q.quarter} {prev_q.year} (même période)"
     )
+
+    col2.metric(
+        "Bloc le plus dur (12 mois)",
+        int(best_all["grade_score"])
+    )
+
+    if best_flash is not None:
+        col3.metric(
+            "Meilleur flash (12 mois)",
+            int(best_flash["grade_score"])
+        )
+    else:
+        col3.metric(
+            "Meilleur flash (12 mois)",
+            "N/A"
+        )
 
 
     # =============================
-    # 📊 GRAPH 1 - VOLUME
+    # 📊 GRAPH 1
     # =============================
     st.markdown("## Volume de la semaine")
 
     st.caption(
-        "Volume = somme des difficultés des blocs réalisés chaque semaine (12 derniers mois)."
+        "Volume = somme des difficultés des blocs réalisés chaque semaine (sur les 12 derniers mois)."
     )
 
-    fig = px.area(
-        weekly_12m,
-        x="week",
-        y="total_score",
-        line_shape="spline"
-    )
-
-    fig.add_scatter(
-        x=weekly_12m["week"],
-        y=weekly_12m["moving_avg"],
-        mode="lines",
-        line=dict(width=2, dash="dash"),
-        name="Moyenne 4 semaines"
-    )
-
-    fig.update_layout(
-        template="simple_white",
-        yaxis_title="",
-        xaxis_title="",
-        showlegend=False
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(plot_weekly(weekly_12m), use_container_width=True)
 
 
     # =============================
-    # 🧠 COACH SIMPLE
+    # 📊 GRAPH 2
+    # =============================
+    st.markdown("## Analyse des styles")
+
+    st.caption(
+        "Répartition des styles parmi les 20% des voies les plus difficiles sur les 12 derniers mois."
+    )
+
+    style_counts = compute_styles_top20(df_12m)
+
+    st.plotly_chart(plot_styles(style_counts), use_container_width=True)
+
+
+    # =============================
+    # 🧠 COACH
     # =============================
     st.markdown("## 🧠 Un mot de ton Coach")
 
-    messages = []
-
-    weekly_avg = weekly_12m["total_score"].mean()
-    last_week = weekly_12m.tail(1)["total_score"].values[0] if len(weekly_12m) > 0 else 0
-
-    if sessions_current < sessions_previous:
-        messages.append("📉 Moins de séances que le trimestre précédent.")
-
-    if last_week < weekly_avg * 0.6:
-        messages.append("⚡ Semaine légère → récup ou technique.")
-
-    if len(messages) == 0:
-        messages.append("🧠 Bonne dynamique, continue comme ça.")
-
-    st.info(" ".join(messages))
+    st.info("Continue à grimper propre et régulier.")
