@@ -364,12 +364,12 @@ if uploaded_file:
     with st.expander("📘 Échelle Arkose → Fontainebleau"):
 
         st.markdown(f"""
-| Niveau | Couleur | Barre 1 | Barre 2 | Barre 3 | Barre 4 | Barre 5 |
-| ------ | ------- | ------- | ------- | ------- | ------- | -------- |
-| 1 | 🟡 | 3 | 3+ | 4A | 4A+ | 4B |
-| 2 | 🟢 | 4B | 4C | 5A | 5A+ | 5B |
-| 3 | 🔵 | 5A+ | 5B | 5B+ | 5C | 5C+ |
-| 4 | 🔴 | 5C+ | 6A | 6A+ | 6B | 6B+ |
-| 5 | ⚫ | 6B | 6B+ | 6C | 6C+ | 7A |
-| 6 | 🟣 | 7A | 7A+ | 7B | 7B+ | 7C / 7C+ |
+| Couleur | Barre 1 | Barre 2 | Barre 3 | Barre 4 | Barre 5 |
+| ------- | ------- | ------- | ------- | ------- | -------- |
+| 🟡 | 3 | 3+ | 4A | 4A+ | 4B |
+| 🟢 | 4B | 4C | 5A | 5A+ | 5B |
+| 🔵 | 5A+ | 5B | 5B+ | 5C | 5C+ |
+| 🔴 | 5C+ | 6A | 6A+ | 6B | 6B+ |
+| ⚫ | 6B | 6B+ | 6C | 6C+ | 7A |
+| 🟣 | 7A | 7A+ | 7B | 7B+ | 7C / 7C+ |
 """)
