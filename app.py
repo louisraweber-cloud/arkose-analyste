@@ -206,31 +206,24 @@ if uploaded_file:
     # =============================
     # 📊 KPI
     # =============================
-    st.markdown("### Synthèse")
-
-    current_year = pd.Timestamp.today().year
+    current_year = today.year
+    previous_year = current_year - 1
 
     sessions_current = df_current["date"].dt.date.nunique()
     sessions_previous = df_previous["date"].dt.date.nunique()
 
     if sessions_previous > 0:
-        delta = sessions_current - sessions_previous
-        pct = (delta / sessions_previous) * 100
+    delta = sessions_current - sessions_previous
+    pct = (delta / sessions_previous) * 100
     else:
-        delta = 0
-        pct = 0
-
-    col1, col2, col3 = st.columns(3)
+    delta = 0
+    pct = 0
 
     col1.metric(
-        f"Séances {current_year}",
-        sessions_current,
-        f"{delta:+} ({pct:.0f}%) vs {current_year - 1}"
+    f"Séances {current_year} (YTD)",
+    sessions_current,
+    f"{delta:+} ({pct:.0f}%) vs YTD {previous_year}"
     )
-
-    col2.metric("Volume total", int(df_current["grade_score"].sum()))
-    col3.metric("Pic hebdo", int(weekly["total_score"].max()))
-
 
     # =============================
     # 📊 GRAPH 1 - VOLUME
