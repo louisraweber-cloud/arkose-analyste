@@ -25,206 +25,95 @@ uploaded_file = st.file_uploader(
 # =============================
 def clean_data(df):
     df = df.copy()
-    
+
     df = df.rename(columns={
         "date de réussite": "date",
         "niveau": "level",
         "sous-niveau": "sub_level"
     })
-    
+
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
     df["level"] = pd.to_numeric(df["level"], errors="coerce")
     df["sub_level"] = pd.to_numeric(df["sub_level"], errors="coerce")
-    
+
     df["grade_score"] = (df["level"] - 6) * 5 + df["sub_level"]
-    
+
     return df
 
 
 # =============================
-# 📊 FILTRES YTD
+# 📊 TRIMESTRES
 # =============================
-def filter_ytd_current(df):
+def filter_current_quarter(df):
     today = pd.Timestamp.today()
-    start_year = pd.Timestamp(today.year, 1, 1)
-    
+
+    start = today.to_period("Q").start_time
+    end = today
+
+    return df[(df["date"] >= start) & (df["date"] <= end)]
+
+
+def filter_previous_quarter(df):
+    today = pd.Timestamp.today()
+
+    current_q = today.to_period("Q")
+    prev_q = current_q - 1
+
     return df[
-        (df["date"] >= start_year) &
-        (df["date"] <= today)
+        (df["date"] >= prev_q.start_time) &
+        (df["date"] <= prev_q.end_time)
     ]
 
 
-def filter_ytd_previous(df):
-    today = pd.Timestamp.today()
-    same_day_last_year = today - pd.DateOffset(years=1)
-    start_last_year = pd.Timestamp(today.year - 1, 1, 1)
-    
-    return df[
-        (df["date"] >= start_last_year) &
-        (df["date"] <= same_day_last_year)
-    ]
+# =============================
+# 🏆 BEST BLOCKS
+# =============================
+def get_best_blocks(df):
+
+    best_all = df.loc[df["grade_score"].idxmax()]
+
+    df_flash = df[df["flashé"] == "Oui"]
+
+    if len(df_flash) > 0:
+        best_flash = df_flash.loc[df_flash["grade_score"].idxmax()]
+    else:
+        best_flash = None
+
+    return best_all, best_flash
 
 
 # =============================
-# 📊 HEBDO SCORE
+# 📊 KPI COHERENT
 # =============================
-def compute_weekly_score(df):
-    
-    df["week"] = df["date"].dt.to_period("W")
-    
-    weekly = df.groupby("week").agg(
-        total_score=("grade_score", "sum")
-    ).reset_index()
-    
-    weekly["week"] = weekly["week"].dt.start_time
-    
-    weekly["moving_avg"] = weekly["total_score"].rolling(4).mean()
-    
-    return weekly
-
-
-# =============================
-# 📊 STYLES TOP 20%
-# =============================
-def compute_styles_top20(df):
-    
-    df = df.copy()
-    
-    df = df.sort_values("grade_score", ascending=False)
-    top20 = df.head(int(len(df) * 0.2))
-    
-    top20 = top20.dropna(subset=["styles"])
-    
-    styles = top20["styles"].str.split("#").explode()
-    styles = styles.str.strip()
-    styles = styles[styles != ""]
-    
-    style_counts = styles.value_counts().reset_index()
-    style_counts.columns = ["style", "count"]
-    
-    return style_counts
-
-
-# =============================
-# 📈 GRAPH HEBDO
-# =============================
-def plot_weekly(weekly):
-    
-    fig = px.area(
-        weekly,
-        x="week",
-        y="total_score",
-        line_shape="spline"
-    )
-    
-    fig.update_traces(
-        line=dict(width=3),
-        opacity=0.9
-    )
-    
-    fig.add_scatter(
-        x=weekly["week"],
-        y=weekly["moving_avg"],
-        mode="lines",
-        line=dict(width=2, dash="dash"),
-        name="Moyenne 4 semaines"
-    )
-    
-    fig.update_layout(
-        template="simple_white",
-        yaxis_title="",
-        xaxis_title="",
-        showlegend=False,
-        hovermode="x unified",
-        margin=dict(l=10, r=10, t=10, b=10)
-    )
-    
-    fig.update_xaxes(
-        showgrid=False,
-        tickformat="%b %y",
-        ticklabelmode="period"
-    )
-    
-    fig.update_yaxes(
-        showgrid=True,
-        gridcolor="rgba(0,0,0,0.05)"
-    )
-    
-    best = weekly.loc[weekly["total_score"].idxmax()]
-    
-    fig.add_scatter(
-        x=[best["week"]],
-        y=[best["total_score"]],
-        mode="markers+text",
-        text=["🔥"],
-        textposition="top center",
-        marker=dict(size=12),
-        showlegend=False
-    )
-    
-    return fig
-
-
-# =============================
-# 📊 GRAPH STYLES
-# =============================
-def plot_styles(style_counts):
-    
-    fig = px.bar(
-        style_counts,
-        x="style",
-        y="count"
-    )
-    
-    fig.update_layout(
-        template="simple_white",
-        xaxis_title="",
-        yaxis_title="",
-        showlegend=False,
-        margin=dict(l=10, r=10, t=40, b=10)
-    )
-    
-    fig.update_xaxes(
-        tickangle=45,
-        showgrid=False
-    )
-    
-    fig.update_yaxes(
-        showgrid=True,
-        gridcolor="rgba(0,0,0,0.05)"
-    )
-    
-    return fig
+def compute_sessions(df):
+    return df["date"].dt.date.nunique()
 
 
 # =============================
 # 🚀 APP
 # =============================
 if uploaded_file:
-    
+
     df = pd.read_excel(uploaded_file)
-    
     df = clean_data(df)
-    
+
     # =============================
-    # 📊 DATA YTD
+    # 📅 DATA TRIMESTRES
     # =============================
-    df_current = filter_ytd_current(df)
-    df_previous = filter_ytd_previous(df)
-    
-    weekly = compute_weekly_score(df_current)
-    
+    df_current = filter_current_quarter(df)
+    df_previous = filter_previous_quarter(df)
+
     # =============================
-    # 📊 KPI
+    # 📊 KPI SÉANCES
     # =============================
     st.markdown("### Synthèse")
 
     today = pd.Timestamp.today()
-    current_year = today.year
-    previous_year = current_year - 1
+    current_q = today.to_period("Q")
+    prev_q = current_q - 1
 
-    sessions_current = df_current["date"].dt.date.nunique()
-    sessions_previous = df_previous["date"].dt.date.nunique()
+    sessions_current = compute_sessions(df_current)
+    sessions_previous = compute_sessions(df_previous)
 
     if sessions_previous > 0:
         delta = sessions_current - sessions_previous
@@ -236,48 +125,38 @@ if uploaded_file:
     col1, col2, col3 = st.columns(3)
 
     col1.metric(
-        f"Séances {current_year} (YTD)",
+        f"Séances T{current_q.quarter} {current_q.year}",
         sessions_current,
-        f"{delta:+} ({pct:.0f}%) vs YTD {previous_year}"
+        f"{delta:+} ({pct:.0f}%) vs T{prev_q.quarter} {prev_q.year}"
     )
 
-    col2.metric("Volume total", int(df_current["grade_score"].sum()))
-    col3.metric("Pic hebdo", int(weekly["total_score"].max()))
-
-
     # =============================
-    # 📊 GRAPH 1 - VOLUME
+    # 🏆 BEST BLOCKS
     # =============================
-    st.markdown("## Volume de la semaine")
+    best_all, best_flash = get_best_blocks(df)
 
-    st.caption(
-        "Le volume correspond à la somme des difficultés des blocs réalisés chaque semaine "
-        "(Jaune 1 barre = 1 point. +1 point pour chaque barre supplémentaire et donc une verte 2 barres = 7 points)."
+    col2.metric(
+        "Meilleur bloc (année)",
+        int(best_all["grade_score"])
     )
 
-    fig1 = plot_weekly(weekly)
-    st.plotly_chart(fig1, use_container_width=True)
-
-
-    # =============================
-    # 📊 GRAPH 2 - STYLES
-    # =============================
-    st.markdown("## Analyse des styles")
-
-    st.caption(
-        "Ce graphique montre la répartition des styles de blocs parmi les 20% des voies les plus difficiles réalisées sur la période."
-    )
-
-    style_counts = compute_styles_top20(df_current)
-
-    fig2 = plot_styles(style_counts)
-    st.plotly_chart(fig2, use_container_width=True)
+    if best_flash is not None:
+        col3.metric(
+            "Meilleur flash (année)",
+            int(best_flash["grade_score"])
+        )
+    else:
+        col3.metric(
+            "Meilleur flash (année)",
+            "N/A"
+        )
 
 
     # =============================
     # 🧠 COACH SIMPLE
     # =============================
-    if weekly["total_score"].iloc[-1] < weekly["total_score"].mean():
-        st.warning("📉 Semaine récente sous ta moyenne → possible fatigue ou baisse de volume")
-    else:
-        st.success("📈 Bonne dynamique récente")
+    if len(df_current) > 0 and len(df_previous) > 0:
+        if sessions_current < sessions_previous:
+            st.warning("📉 Moins de séances que le trimestre précédent → attention à la régularité")
+        else:
+            st.success("📈 Bonne dynamique de fréquentation")
