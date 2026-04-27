@@ -39,10 +39,10 @@ if not st.session_state.file_uploaded and not st.session_state.processing:
     st.markdown("""
 ### 📥 Importer tes données Arkose
 
-1. 👉 [Accéder à ton compte Arkose](https://accounts.arkose.com/?userEdit=true)  
-2. Se connecter  
-3. Cliquer sur **Exporter mes données**  
-4. Importer le fichier Excel ci-dessous  
+1. [Accéde à ton compte Arkose](https://accounts.arkose.com/?userEdit=true)  
+2. Connecte-toi  
+3. Scrolle un peu vers le bas puis clique sur **Exporter mes données**  
+4. Importe le fichier Excel ci-dessous  
 """)
 
     uploaded_file = st.file_uploader(
