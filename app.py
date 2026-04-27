@@ -62,7 +62,7 @@ if not st.session_state.file_uploaded and not st.session_state.processing:
 if st.session_state.processing:
 
     st.progress(0.5)
-    st.write("Analyse des blocs…")
+    st.write("Analyse des blocs...")
 
     time.sleep(0.3)
 
@@ -74,27 +74,15 @@ if st.session_state.processing:
 
 
 # =========================================================
-# 🧗 GRADING ARKOSE (SOURCE OFFICIELLE)
+# 🧗 GRADING ARKOSE (OFFICIEL)
 # =========================================================
 ARKOSE_GRADE_MAP = {
-    "jaune": {
-        1: "3", 2: "3+", 3: "4A", 4: "4A+", 5: "4B"
-    },
-    "vert": {
-        1: "4B", 2: "4C", 3: "5A", 4: "5A+", 5: "5B"
-    },
-    "bleu": {
-        1: "5A+", 2: "5B", 3: "5B+", 4: "5C", 5: "5C+"
-    },
-    "rouge": {
-        1: "5C+", 2: "6A", 3: "6A+", 4: "6B", 5: "6B+"
-    },
-    "noir": {
-        1: "6B", 2: "6B+", 3: "6C", 4: "6C+", 5: "7A"
-    },
-    "violet": {
-        1: "7A", 2: "7A+", 3: "7B", 4: "7B+", 5: "7C"
-    }
+    "jaune": {1: "3", 2: "3+", 3: "4A", 4: "4A+", 5: "4B"},
+    "vert": {1: "4B", 2: "4C", 3: "5A", 4: "5A+", 5: "5B"},
+    "bleu": {1: "5A+", 2: "5B", 3: "5B+", 4: "5C", 5: "5C+"},
+    "rouge": {1: "5C+", 2: "6A", 3: "6A+", 4: "6B", 5: "6B+"},
+    "noir": {1: "6B", 2: "6B+", 3: "6C", 4: "6C+", 5: "7A"},
+    "violet": {1: "7A", 2: "7A+", 3: "7B", 4: "7B+", 5: "7C"}
 }
 
 
@@ -104,8 +92,14 @@ def to_font_grade(color, sub_level):
     return ARKOSE_GRADE_MAP.get(color, {}).get(sub_level, "?")
 
 
+def format_block(row):
+    if row is None:
+        return "N/A"
+    return to_font_grade(row["color"], row["sub_level"])
+
+
 # =========================================================
-# 🧹 CLEAN DATA
+# 🧹 DATA CLEANING
 # =========================================================
 def clean_data(df):
     df = df.copy()
@@ -185,12 +179,14 @@ def compute_styles_top20(df):
 
 def get_best_blocks(df):
 
-    best_all = df.iloc[df["sub_level"].idxmax()]
+    df_valid = df.dropna(subset=["sub_level", "color"])
 
-    df_flash = df[df["flashé"] == "Oui"]
+    best_all = df_valid.loc[df_valid["sub_level"].idxmax()]
+
+    df_flash = df_valid[df_valid["flashé"] == "Oui"]
 
     if len(df_flash) > 0:
-        best_flash = df_flash.iloc[df_flash["sub_level"].idxmax()]
+        best_flash = df_flash.loc[df_flash["sub_level"].idxmax()]
     else:
         best_flash = None
 
@@ -201,10 +197,8 @@ def get_best_blocks(df):
 # 📈 VISUALISATIONS
 # =========================================================
 def plot_weekly(df):
-
     fig = px.bar(df, x="week", y="count")
     fig.update_layout(template="simple_white", showlegend=False)
-
     return fig
 
 
@@ -245,13 +239,13 @@ if st.session_state.file_uploaded:
     col1.metric("Séances", df_current_q["date"].nunique())
 
     col2.metric(
-        "Bloc le plus dur",
-        to_font_grade(best_all["color"], best_all["sub_level"])
+        "Meilleur Bloc 2026",
+        format_block(best_all)
     )
 
     col3.metric(
-        "Meilleur flash",
-        to_font_grade(best_flash["color"], best_flash["sub_level"]) if best_flash is not None else "N/A"
+        "Meilleur Flash 2026",
+        format_block(best_flash)
     )
 
     # =========================
