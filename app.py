@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import time
 
 
 # =========================================================
@@ -15,9 +16,12 @@ st.set_page_config(page_title="Arkose Analyste", layout="centered")
 if "file_uploaded" not in st.session_state:
     st.session_state.file_uploaded = False
 
+if "processing" not in st.session_state:
+    st.session_state.processing = False
+
 
 # =========================================================
-# 🎯 HEADER
+# 🧭 HEADER
 # =========================================================
 st.title("Arkose Analyste")
 
@@ -30,14 +34,14 @@ if st.session_state.file_uploaded:
 # =========================================================
 # 🟦 LANDING
 # =========================================================
-if not st.session_state.file_uploaded:
+if not st.session_state.file_uploaded and not st.session_state.processing:
 
     st.markdown("""
 ### Importer tes données Arkose
 
-1. https://accounts.arkose.com/?userEdit=true  
+1. Accéder à ton compte : https://accounts.arkose.com/?userEdit=true  
 2. Se connecter  
-3. Scroller puis cliquer sur **Exporter mes données**  
+3. Scrolle un peu vers le bas puis clique sur **Exporter mes données**  
 4. Importer le fichier Excel ci-dessous  
 """)
 
@@ -47,22 +51,57 @@ if not st.session_state.file_uploaded:
     )
 
     if uploaded_file is not None:
-        st.session_state.file = uploaded_file
-        st.session_state.file_uploaded = True
+        st.session_state.processing = True
+        st.session_state.temp_file = uploaded_file
         st.rerun()
 
 
 # =========================================================
-# 🎨 COULEURS ARKOSE
+# ⏳ LOADING
 # =========================================================
-COLOR_RANK = {
-    "jaune": 1,
-    "vert": 2,
-    "bleu": 3,
-    "rouge": 4,
-    "noir": 5,
-    "violet": 6
+if st.session_state.processing:
+
+    st.progress(0.5)
+    st.write("Analyse des blocs…")
+
+    time.sleep(0.3)
+
+    st.session_state.file_uploaded = True
+    st.session_state.file = st.session_state.temp_file
+    st.session_state.processing = False
+
+    st.rerun()
+
+
+# =========================================================
+# 🧗 GRADING ARKOSE (SOURCE OFFICIELLE)
+# =========================================================
+ARKOSE_GRADE_MAP = {
+    "jaune": {
+        1: "3", 2: "3+", 3: "4A", 4: "4A+", 5: "4B"
+    },
+    "vert": {
+        1: "4B", 2: "4C", 3: "5A", 4: "5A+", 5: "5B"
+    },
+    "bleu": {
+        1: "5A+", 2: "5B", 3: "5B+", 4: "5C", 5: "5C+"
+    },
+    "rouge": {
+        1: "5C+", 2: "6A", 3: "6A+", 4: "6B", 5: "6B+"
+    },
+    "noir": {
+        1: "6B", 2: "6B+", 3: "6C", 4: "6C+", 5: "7A"
+    },
+    "violet": {
+        1: "7A", 2: "7A+", 3: "7B", 4: "7B+", 5: "7C"
+    }
 }
+
+
+def to_font_grade(color, sub_level):
+    color = str(color).strip().lower()
+    sub_level = int(sub_level)
+    return ARKOSE_GRADE_MAP.get(color, {}).get(sub_level, "?")
 
 
 # =========================================================
@@ -73,31 +112,12 @@ def clean_data(df):
 
     df = df.rename(columns={
         "date de réussite": "date",
-        "niveau": "level",
+        "couleur des prises": "color",
         "sous-niveau": "sub_level"
     })
 
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
-
-    df["couleur des prises"] = (
-        df["couleur des prises"]
-        .astype(str)
-        .str.lower()
-        .str.strip()
-    )
-
-    # NORMALISATION IMPORTANT
-    df["couleur des prises"] = df["couleur des prises"].replace({
-        "jaunes": "jaune",
-        "vertes": "vert",
-        "bleues": "bleu",
-        "rouges": "rouge",
-        "noires": "noir",
-        "violettes": "violet"
-    })
-
-    if "salle" not in df.columns:
-        df["salle"] = "Inconnue"
+    df["sub_level"] = pd.to_numeric(df["sub_level"], errors="coerce")
 
     return df
 
@@ -128,40 +148,27 @@ def filter_last_12_months(df):
 
 
 # =========================================================
-# 🏆 BEST BLOCKS (COULEURS)
+# 📊 ANALYSES
 # =========================================================
-def get_best_blocks(df):
+def compute_weekly_score(df):
 
     df = df.copy()
+    df["week"] = df["date"].dt.to_period("W")
 
-    df["rank"] = df["couleur des prises"].map(COLOR_RANK)
-    df = df.dropna(subset=["rank"])
+    weekly = df.groupby("week").size().reset_index(name="count")
+    weekly["week"] = weekly["week"].dt.start_time
 
-    if df.empty:
-        return None, None
-
-    best_all = df.loc[df["rank"].idxmax()]
-
-    df_flash = df[df["flashé"].astype(str).str.lower().str.strip() == "oui"]
-    df_flash = df_flash.dropna(subset=["rank"])
-
-    best_flash = df_flash.loc[df_flash["rank"].idxmax()] if not df_flash.empty else None
-
-    return best_all, best_flash
+    return weekly
 
 
-# =========================================================
-# 📊 STYLES
-# =========================================================
 def compute_styles_top20(df):
 
-    df = df.copy()
+    df = df.copy().dropna(subset=["styles"])
 
-    df = df[df["couleur des prises"].isin(COLOR_RANK.keys())]
+    top = df.head(int(len(df) * 0.2))
 
     styles = (
-        df["styles"]
-        .dropna()
+        top["styles"]
         .astype(str)
         .str.split("#")
         .explode()
@@ -176,8 +183,44 @@ def compute_styles_top20(df):
     return result
 
 
+def get_best_blocks(df):
+
+    best_all = df.iloc[df["sub_level"].idxmax()]
+
+    df_flash = df[df["flashé"] == "Oui"]
+
+    if len(df_flash) > 0:
+        best_flash = df_flash.iloc[df_flash["sub_level"].idxmax()]
+    else:
+        best_flash = None
+
+    return best_all, best_flash
+
+
 # =========================================================
-# 🚀 APP
+# 📈 VISUALISATIONS
+# =========================================================
+def plot_weekly(df):
+
+    fig = px.bar(df, x="week", y="count")
+    fig.update_layout(template="simple_white", showlegend=False)
+
+    return fig
+
+
+def plot_styles(df):
+
+    if df.empty:
+        return px.bar(title="Aucune donnée")
+
+    fig = px.bar(df, x="style", y="count")
+    fig.update_layout(template="simple_white", showlegend=False)
+
+    return fig
+
+
+# =========================================================
+# 🚀 DASHBOARD
 # =========================================================
 if st.session_state.file_uploaded:
 
@@ -188,83 +231,57 @@ if st.session_state.file_uploaded:
     df_previous_q = filter_previous_quarter_same_period(df)
     df_12m = filter_last_12_months(df)
 
+    weekly = compute_weekly_score(df_12m)
+
     best_all, best_flash = get_best_blocks(df_12m)
 
-    today = pd.Timestamp.today()
-    year = today.year
-    quarter = today.to_period("Q").quarter
-
-    sessions_current = df_current_q["date"].nunique()
-    sessions_previous = df_previous_q["date"].nunique()
-
-    delta = sessions_current - sessions_previous
-    pct = (delta / sessions_previous * 100) if sessions_previous > 0 else 0
-
-
-    # =====================================================
-    # 🧠 SYNTHÈSE
-    # =====================================================
+    # =========================
+    # SYNTHÈSE
+    # =========================
     st.markdown("### Synthèse")
 
     col1, col2, col3 = st.columns(3)
 
-    col1.metric(
-        f"Séances - T{quarter} {year}",
-        sessions_current,
-        f"{delta:+} ({pct:.0f}%) vs trimestre précédent"
-    )
+    col1.metric("Séances", df_current_q["date"].nunique())
 
     col2.metric(
-        f"Meilleur Top {year}",
-        best_all["couleur des prises"].capitalize() if best_all is not None else "N/A"
-    )
-
-    st.caption(
-        f"Salle : {best_all['salle'] if best_all is not None else 'Inconnue'}"
+        "Bloc le plus dur",
+        to_font_grade(best_all["color"], best_all["sub_level"])
     )
 
     col3.metric(
-        f"Meilleur Flash {year}",
-        best_flash["couleur des prises"].capitalize() if best_flash is not None else "N/A"
+        "Meilleur flash",
+        to_font_grade(best_flash["color"], best_flash["sub_level"]) if best_flash is not None else "N/A"
     )
 
-    if best_flash is not None:
-        st.caption(
-            f"Salle : {best_flash['salle'] if best_flash is not None else 'Inconnue'}"
-        )
+    # =========================
+    # GRAPHS
+    # =========================
+    st.markdown("## Volume de la semaine")
+    st.plotly_chart(plot_weekly(weekly), use_container_width=True)
 
-
-    # =====================================================
-    # 📊 STYLES
-    # =====================================================
     st.markdown("## Analyse des styles")
-    st.caption("Zones de difficulté sur 12 mois")
+    st.caption("Top 20% des voies les plus dures sur 12 mois")
+    st.plotly_chart(plot_styles(compute_styles_top20(df_12m)), use_container_width=True)
 
-    st.plotly_chart(
-        px.bar(compute_styles_top20(df_12m), x="style", y="count"),
-        use_container_width=True
-    )
-
-
-    # =====================================================
-    # 🧠 COACH
-    # =====================================================
+    # =========================
+    # COACH
+    # =========================
     st.markdown("## Un mot du Coach")
-    st.info("Continue sur ta dynamique actuelle.")
+    st.info("Continue à grimper régulièrement et proprement.")
 
-
-    # =====================================================
-    # 📦 ANNEXE
-    # =====================================================
-    st.markdown("## Annexe")
+    # =========================
+    # GRENIER
+    # =========================
+    st.markdown("## Grenier")
 
     st.markdown("""
 |  | 1 barre | 2 barres | 3 barres | 4 barres | 5 barres |
 | - | ------- | -------- | -------- | -------- | -------- |
-| 🟡 | 3 | 3+ | 4a | 4a+ | 4b |
-| 🟢 | 4b | 4c | 5a | 5a+ | 5b |
-| 🔵 | 5a+ | 5b | 5b+ | 5c | 5c+ |
-| 🔴 | 5c+ | 6a | 6a+ | 6b | 6b+ |
-| ⚫ | 6b | 6b+ | 6c | 6c+ | 7a |
-| 🟣 | 7a | 7a+ | 7b | 7b+ | 7c / 7c+ |
+| 🟡 | 3 | 3+ | 4A | 4A+ | 4B |
+| 🟢 | 4B | 4C | 5A | 5A+ | 5B |
+| 🔵 | 5A+ | 5B | 5B+ | 5C | 5C+ |
+| 🔴 | 5C+ | 6A | 6A+ | 6B | 6B+ |
+| ⚫ | 6B | 6B+ | 6C | 6C+ | 7A |
+| 🟣 | 7A | 7A+ | 7B | 7B+ | 7C / 7C+ |
 """)
