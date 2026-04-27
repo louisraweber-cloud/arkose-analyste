@@ -38,9 +38,7 @@ if not st.session_state.file_uploaded and not st.session_state.processing:
 
 
     st.markdown("""
-### 📥 Importer tes données Arkose
-### Importer tes données Arkose
-
+    
 1. [Accéde à ton compte Arkose](https://accounts.arkose.com/?userEdit=true)  
 2. Connecte-toi  
 3. Scrolle un peu vers le bas puis clique sur **Exporter mes données**  
