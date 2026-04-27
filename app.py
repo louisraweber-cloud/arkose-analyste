@@ -364,7 +364,7 @@ if uploaded_file:
     with st.expander("📘 Échelle Arkose → Fontainebleau"):
 
         st.markdown(f"""
-| Couleur | Barre 1 | Barre 2 | Barre 3 | Barre 4 | Barre 5 |
+|  | Barre 1 | Barre 2 | Barre 3 | Barre 4 | Barre 5 |
 | ------- | ------- | ------- | ------- | ------- | -------- |
 | 🟡 | 3 | 3+ | 4A | 4A+ | 4B |
 | 🟢 | 4B | 4C | 5A | 5A+ | 5B |
