@@ -86,23 +86,9 @@ ARKOSE_GRADE_MAP = {
 
 
 def to_font_grade(color, sub_level):
-
     color = str(color).strip().lower()
-
-    if pd.isna(sub_level):
-        return None
-
-    sub_level = int(float(sub_level))
-
-    if sub_level < 1 or sub_level > 5:
-        return None
-
-    return ARKOSE_GRADE_MAP[color][sub_level]
-
-
-def safe_grade(color, sub_level):
-    grade = to_font_grade(color, sub_level)
-    return grade if grade is not None else "N/A"
+    sub_level = int(sub_level)
+    return ARKOSE_GRADE_MAP.get(color, {}).get(sub_level, "?")
 
 
 # =========================================================
@@ -159,6 +145,15 @@ def filter_last_12_months(df):
 # =========================================================
 # 📊 ANALYSES
 # =========================================================
+def compute_weekly_score(df):
+
+    df = df.copy()
+    df["week"] = df["date"].dt.to_period("W").dt.start_time
+    df["week"] = pd.to_datetime(df["week"])
+
+    return df.groupby("week").size().reset_index(name="count")
+
+
 def compute_styles_top20(df):
 
     df = df.copy().dropna(subset=["styles"])
@@ -256,7 +251,7 @@ if st.session_state.get("file_uploaded", False):
 
     col2.metric(
         "Bloc le plus dur",
-        safe_grade(best_all["color"], best_all["sub_level"])
+        to_font_grade(best_all["color"], best_all["sub_level"])
     )
 
     col2.caption(
@@ -266,7 +261,7 @@ if st.session_state.get("file_uploaded", False):
     if best_flash is not None:
         col3.metric(
             "Meilleur flash",
-            safe_grade(best_flash["color"], best_flash["sub_level"])
+            to_font_grade(best_flash["color"], best_flash["sub_level"])
         )
         col3.caption(
             f"Salle : {format_salle(best_flash['salle']) if 'salle' in best_flash else 'N/A'}"
@@ -275,7 +270,7 @@ if st.session_state.get("file_uploaded", False):
         col3.metric("Meilleur flash", "N/A")
 
     # =========================
-    # GRAPHE
+    # GRAPHE UNIQUE
     # =========================
     st.markdown("## Analyse des styles")
     st.caption("Top 20% des voies les plus dures sur 12 mois")
