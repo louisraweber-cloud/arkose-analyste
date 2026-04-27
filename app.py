@@ -74,7 +74,7 @@ if st.session_state.processing:
 
 
 # =========================================================
-# 🧗 GRADING ARKOSE (OFFICIEL)
+# 🧗 GRADING ARKOSE
 # =========================================================
 ARKOSE_GRADE_MAP = {
     "jaune": {1: "3", 2: "3+", 3: "4A", 4: "4A+", 5: "4B"},
@@ -90,12 +90,6 @@ def to_font_grade(color, sub_level):
     color = str(color).strip().lower()
     sub_level = int(sub_level)
     return ARKOSE_GRADE_MAP.get(color, {}).get(sub_level, "?")
-
-
-def format_block(row):
-    if row is None:
-        return "N/A"
-    return to_font_grade(row["color"], row["sub_level"])
 
 
 # =========================================================
@@ -239,13 +233,13 @@ if st.session_state.file_uploaded:
     col1.metric("Séances", df_current_q["date"].nunique())
 
     col2.metric(
-        "Meilleur Bloc 2026",
-        format_block(best_all)
+        "Bloc le plus dur",
+        to_font_grade(best_all["color"], best_all["sub_level"])
     )
 
     col3.metric(
-        "Meilleur Flash 2026",
-        format_block(best_flash)
+        "Meilleur flash",
+        to_font_grade(best_flash["color"], best_flash["sub_level"]) if best_flash is not None else "N/A"
     )
 
     # =========================
