@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
-import time
 
 
 # =========================================================
@@ -16,9 +14,6 @@ st.set_page_config(page_title="Arkose Analyste", layout="centered")
 # =========================================================
 if "file_uploaded" not in st.session_state:
     st.session_state.file_uploaded = False
-
-if "processing" not in st.session_state:
-    st.session_state.processing = False
 
 
 # =========================================================
@@ -35,7 +30,7 @@ if st.session_state.file_uploaded:
 # =========================================================
 # 🟦 LANDING
 # =========================================================
-if not st.session_state.file_uploaded and not st.session_state.processing:
+if not st.session_state.file_uploaded:
 
     st.markdown("""
 ### Importer tes données Arkose
@@ -52,30 +47,13 @@ if not st.session_state.file_uploaded and not st.session_state.processing:
     )
 
     if uploaded_file is not None:
-        st.session_state.processing = True
-        st.session_state.temp_file = uploaded_file
+        st.session_state.file_uploaded = True
+        st.session_state.file = uploaded_file
         st.rerun()
 
 
 # =========================================================
-# ⏳ LOADING
-# =========================================================
-if st.session_state.processing:
-
-    st.progress(0.5)
-    st.write("Chargement des données...")
-
-    time.sleep(0.3)
-
-    st.session_state.file_uploaded = True
-    st.session_state.file = st.session_state.temp_file
-    st.session_state.processing = False
-
-    st.rerun()
-
-
-# =========================================================
-# 🧹 CLEAN
+# 🧹 DATA CLEANING
 # =========================================================
 def clean_data(df):
     df = df.copy()
@@ -154,21 +132,6 @@ def filter_last_12_months(df):
 # =========================================================
 # 📊 ANALYSES
 # =========================================================
-def compute_weekly_score(df):
-
-    df = df.copy()
-    df["week"] = df["date"].dt.to_period("W")
-
-    weekly = df.groupby("week").agg(
-        total_score=("grade_score", "sum")
-    ).reset_index()
-
-    weekly["week"] = weekly["week"].dt.start_time
-    weekly["moving_avg"] = weekly["total_score"].rolling(4).mean()
-
-    return weekly
-
-
 def compute_styles_top20(df):
 
     df = df.copy().sort_values("grade_score", ascending=False)
@@ -207,62 +170,6 @@ def get_best_blocks(df):
 
 
 # =========================================================
-# 📈 VISUALS
-# =========================================================
-def plot_weekly(df):
-
-    fig = px.area(df, x="week", y="total_score", line_shape="spline")
-
-    fig.update_traces(line=dict(width=3))
-
-    fig.add_scatter(
-        x=df["week"],
-        y=df["moving_avg"],
-        mode="lines",
-        line=dict(width=2, dash="dash")
-    )
-
-    fig.update_layout(template="simple_white", showlegend=False)
-
-    return fig
-
-
-def plot_styles(df):
-
-    if df.empty:
-        return px.bar(title="Aucune donnée")
-
-    fig = px.bar(df, x="style", y="count")
-    fig.update_layout(template="simple_white", showlegend=False)
-
-    return fig
-
-
-# =========================================================
-# 📈 SPARKLINE
-# =========================================================
-def sessions_sparkline(current, previous):
-
-    fig = go.Figure()
-
-    fig.add_trace(go.Scatter(
-        y=[previous, current],
-        mode="lines+markers",
-        line=dict(width=2),
-        marker=dict(size=6)
-    ))
-
-    fig.update_layout(
-        height=50,
-        margin=dict(l=0, r=0, t=0, b=0),
-        xaxis=dict(visible=False),
-        yaxis=dict(visible=False)
-    )
-
-    return fig
-
-
-# =========================================================
 # 🚀 DASHBOARD
 # =========================================================
 if st.session_state.file_uploaded:
@@ -274,8 +181,6 @@ if st.session_state.file_uploaded:
     df_previous_q = filter_previous_quarter_same_period(df)
     df_12m = filter_last_12_months(df)
 
-    weekly = compute_weekly_score(df_12m)
-
     best_all, best_flash = get_best_blocks(df_12m)
 
     # =========================
@@ -283,44 +188,44 @@ if st.session_state.file_uploaded:
     # =========================
     st.markdown("### Synthèse")
 
+    today = pd.Timestamp.today()
+    year = today.year
+    quarter = today.to_period("Q").quarter
+
     sessions_current = df_current_q["date"].nunique()
     sessions_previous = df_previous_q["date"].nunique()
 
     delta = sessions_current - sessions_previous
     pct = (delta / sessions_previous * 100) if sessions_previous > 0 else 0
 
-    col1, col2, col3 = st.columns([2, 1, 1])
+    col1, col2, col3 = st.columns(3)
 
-    with col1:
-        st.metric(
-            "Séances",
-            sessions_current,
-            f"{delta:+} ({pct:.0f}%)"
-        )
-        st.plotly_chart(
-            sessions_sparkline(sessions_current, sessions_previous),
-            use_container_width=True
-        )
+    col1.metric(
+        f"Séances - T{quarter} {year}",
+        sessions_current,
+        f"{delta:+} ({pct:.0f}%) vs trimestre précédent"
+    )
 
     col2.metric(
-        "Bloc le plus dur",
+        f"Bloc le plus dur {year}",
         to_font_grade(best_all["level"], best_all["sub_level"])
     )
 
     col3.metric(
-        "Meilleur flash",
+        f"Meilleur flash {year}",
         to_font_grade(best_flash["level"], best_flash["sub_level"]) if best_flash is not None else "N/A"
     )
 
     # =========================
     # GRAPHS
     # =========================
-    st.markdown("## Volume de la semaine")
-    st.plotly_chart(plot_weekly(weekly), use_container_width=True)
-
     st.markdown("## Analyse des styles")
     st.caption("Top 20% des voies les plus dures sur 12 mois")
-    st.plotly_chart(plot_styles(compute_styles_top20(df_12m)), use_container_width=True)
+
+    st.plotly_chart(
+        px.bar(compute_styles_top20(df_12m), x="style", y="count"),
+        use_container_width=True
+    )
 
     # =========================
     # COACH
