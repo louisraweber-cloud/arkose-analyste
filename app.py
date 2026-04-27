@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import time
 
 
@@ -32,7 +33,7 @@ if st.session_state.file_uploaded:
 
 
 # =========================================================
-# 🟦 LANDING (SANS EMOJIS)
+# 🟦 LANDING
 # =========================================================
 if not st.session_state.file_uploaded and not st.session_state.processing:
 
@@ -74,7 +75,7 @@ if st.session_state.processing:
 
 
 # =========================================================
-# 🧹 DATA CLEANING
+# 🧹 CLEAN
 # =========================================================
 def clean_data(df):
     df = df.copy()
@@ -206,7 +207,7 @@ def get_best_blocks(df):
 
 
 # =========================================================
-# 📈 VISUALISATIONS
+# 📈 VISUALS
 # =========================================================
 def plot_weekly(df):
 
@@ -238,6 +239,30 @@ def plot_styles(df):
 
 
 # =========================================================
+# 📈 SPARKLINE
+# =========================================================
+def sessions_sparkline(current, previous):
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        y=[previous, current],
+        mode="lines+markers",
+        line=dict(width=2),
+        marker=dict(size=6)
+    ))
+
+    fig.update_layout(
+        height=50,
+        margin=dict(l=0, r=0, t=0, b=0),
+        xaxis=dict(visible=False),
+        yaxis=dict(visible=False)
+    )
+
+    return fig
+
+
+# =========================================================
 # 🚀 DASHBOARD
 # =========================================================
 if st.session_state.file_uploaded:
@@ -258,9 +283,24 @@ if st.session_state.file_uploaded:
     # =========================
     st.markdown("### Synthèse")
 
-    col1, col2, col3 = st.columns(3)
+    sessions_current = df_current_q["date"].nunique()
+    sessions_previous = df_previous_q["date"].nunique()
 
-    col1.metric("Séances", df_current_q["date"].nunique())
+    delta = sessions_current - sessions_previous
+    pct = (delta / sessions_previous * 100) if sessions_previous > 0 else 0
+
+    col1, col2, col3 = st.columns([2, 1, 1])
+
+    with col1:
+        st.metric(
+            "Séances",
+            sessions_current,
+            f"{delta:+} ({pct:.0f}%)"
+        )
+        st.plotly_chart(
+            sessions_sparkline(sessions_current, sessions_previous),
+            use_container_width=True
+        )
 
     col2.metric(
         "Bloc le plus dur",
@@ -289,9 +329,9 @@ if st.session_state.file_uploaded:
     st.info("Continue sur ta dynamique actuelle.")
 
     # =========================
-    # GRENIER
+    # ANNEXE
     # =========================
-    st.markdown("## Grenier")
+    st.markdown("## Annexe")
 
     st.markdown("""
 |  | 1 barre | 2 barres | 3 barres | 4 barres | 5 barres |
