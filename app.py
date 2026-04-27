@@ -47,9 +47,22 @@ if not st.session_state.file_uploaded:
     )
 
     if uploaded_file is not None:
-        st.session_state.file_uploaded = True
         st.session_state.file = uploaded_file
+        st.session_state.file_uploaded = True
         st.rerun()
+
+
+# =========================================================
+# 🎨 COULEURS ARKOSE
+# =========================================================
+COLOR_RANK = {
+    "jaune": 1,
+    "vert": 2,
+    "bleu": 3,
+    "rouge": 4,
+    "noir": 5,
+    "violet": 6
+}
 
 
 # =========================================================
@@ -65,50 +78,21 @@ def clean_data(df):
     })
 
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
+
     df["level"] = pd.to_numeric(df["level"], errors="coerce")
     df["sub_level"] = pd.to_numeric(df["sub_level"], errors="coerce")
 
-    df["grade_score"] = (df["level"] - 6) * 5 + df["sub_level"]
+    df["couleur des prises"] = (
+        df["couleur des prises"]
+        .astype(str)
+        .str.lower()
+        .str.strip()
+    )
 
     if "salle" not in df.columns:
         df["salle"] = "Inconnue"
 
     return df
-
-
-# =========================================================
-# 🧗 GRADES FONTAINEBLEAU
-# =========================================================
-def to_font_grade(level, sub_level):
-
-    base_map = {
-        1: "3",
-        2: "4",
-        3: "5",
-        4: "6a",
-        5: "6b",
-        6: "6c",
-        7: "7a",
-        8: "7b"
-    }
-
-    base = base_map.get(int(level), "?")
-
-    if sub_level <= 1:
-        suffix = ""
-    elif sub_level == 2:
-        suffix = "+"
-    elif sub_level == 3:
-        suffix = "+"
-    elif sub_level >= 4:
-        suffix = "++"
-    else:
-        suffix = ""
-
-    if base in ["3", "4", "5"]:
-        return base
-
-    return f"{base}{suffix}"
 
 
 # =========================================================
@@ -137,16 +121,44 @@ def filter_last_12_months(df):
 
 
 # =========================================================
-# 📊 ANALYSES
+# 🏆 BEST BLOCKS (COULEURS)
+# =========================================================
+def get_best_blocks(df):
+
+    df = df.copy()
+
+    df["rank"] = df["couleur des prises"].map(COLOR_RANK)
+    df = df.dropna(subset=["rank"])
+
+    if len(df) == 0:
+        return None, None
+
+    # 🏆 meilleur top
+    best_all = df.loc[df["rank"].idxmax()]
+
+    # ⚡ flash
+    df_flash = df[df["flashé"].astype(str).str.lower().str.strip() == "oui"]
+
+    if len(df_flash) > 0:
+        df_flash = df_flash.dropna(subset=["rank"])
+        best_flash = df_flash.loc[df_flash["rank"].idxmax()]
+    else:
+        best_flash = None
+
+    return best_all, best_flash
+
+
+# =========================================================
+# 📊 STYLES (VERSION COULEUR)
 # =========================================================
 def compute_styles_top20(df):
 
-    df = df.copy().sort_values("grade_score", ascending=False)
+    df = df.copy()
 
-    top = df.head(int(len(df) * 0.2))
+    df = df[df["couleur des prises"].isin(["rouge", "noir", "violet"])]
 
     styles = (
-        top["styles"]
+        df["styles"]
         .dropna()
         .astype(str)
         .str.split("#")
@@ -162,22 +174,8 @@ def compute_styles_top20(df):
     return result
 
 
-def get_best_blocks(df):
-
-    best_all = df.loc[df["grade_score"].idxmax()]
-
-    df_flash = df[df["flashé"] == "Oui"]
-
-    if len(df_flash) > 0:
-        best_flash = df_flash.loc[df_flash["grade_score"].idxmax()]
-    else:
-        best_flash = None
-
-    return best_all, best_flash
-
-
 # =========================================================
-# 🚀 DASHBOARD
+# 🚀 APP
 # =========================================================
 if st.session_state.file_uploaded:
 
@@ -216,13 +214,13 @@ if st.session_state.file_uploaded:
 
     col2.metric(
         f"Meilleur Top {year}",
-        to_font_grade(best_all["level"], best_all["sub_level"])
+        best_all["couleur des prises"].capitalize() if best_all is not None else "N/A"
     )
     st.caption(f"Salle : {best_all.get('salle', 'Inconnue')}")
 
     col3.metric(
         f"Meilleur Flash {year}",
-        to_font_grade(best_flash["level"], best_flash["sub_level"]) if best_flash is not None else "N/A"
+        best_flash["couleur des prises"].capitalize() if best_flash is not None else "N/A"
     )
 
     if best_flash is not None:
@@ -233,7 +231,7 @@ if st.session_state.file_uploaded:
     # 📊 GRAPHIQUE STYLES
     # =====================================================
     st.markdown("## Analyse des styles")
-    st.caption("Top 20% des voies les plus dures sur 12 mois")
+    st.caption("Top zones de difficulté sur 12 mois")
 
     st.plotly_chart(
         px.bar(compute_styles_top20(df_12m), x="style", y="count"),
