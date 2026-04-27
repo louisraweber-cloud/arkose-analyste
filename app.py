@@ -12,12 +12,27 @@ st.title("Arkose Analyste")
 
 
 # =============================
-# 📂 UPLOAD
+# 📂 UPLOAD (DISPARAIT APRÈS CHARGEMENT)
 # =============================
-uploaded_file = st.file_uploader(
-    "Importer ton fichier Arkose (Excel)", 
-    type=["xlsx"]
-)
+if "file_uploaded" not in st.session_state:
+    st.session_state.file_uploaded = False
+
+if not st.session_state.file_uploaded:
+    uploaded_file = st.file_uploader(
+        "Importer ton fichier Arkose (Excel)", 
+        type=["xlsx"]
+    )
+
+    if uploaded_file is not None:
+        st.session_state.file_uploaded = True
+        st.session_state.file = uploaded_file
+        st.rerun()
+else:
+    uploaded_file = st.session_state.file
+
+    if st.button("🔄 Charger un autre fichier"):
+        st.session_state.file_uploaded = False
+        st.rerun()
 
 
 # =============================
@@ -170,9 +185,6 @@ if uploaded_file:
     df = pd.read_excel(uploaded_file)
     df = clean_data(df)
 
-    # =============================
-    # 📅 DATASETS
-    # =============================
     df_current_q = filter_current_quarter(df)
     df_previous_q = filter_previous_quarter_same_period(df)
     df_12m = filter_last_12_months(df)
@@ -227,7 +239,6 @@ if uploaded_file:
             "N/A"
         )
 
-
     # =============================
     # 📊 GRAPH 1
     # =============================
@@ -237,30 +248,7 @@ if uploaded_file:
         "Volume = somme des difficultés des blocs réalisés chaque semaine (sur les 12 derniers mois)."
     )
 
-    fig = px.area(
-        weekly_12m,
-        x="week",
-        y="total_score",
-        line_shape="spline"
-    )
-
-    fig.add_scatter(
-        x=weekly_12m["week"],
-        y=weekly_12m["moving_avg"],
-        mode="lines",
-        line=dict(width=2, dash="dash"),
-        name="Moyenne 4 semaines"
-    )
-
-    fig.update_layout(
-        template="simple_white",
-        yaxis_title="",
-        xaxis_title="",
-        showlegend=False
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-
+    st.plotly_chart(plot_weekly(weekly_12m), use_container_width=True)
 
     # =============================
     # 📊 GRAPH 2
@@ -273,21 +261,7 @@ if uploaded_file:
 
     style_counts = compute_styles_top20(df_12m)
 
-    fig2 = px.bar(
-        style_counts,
-        x="style",
-        y="count"
-    )
-
-    fig2.update_layout(
-        template="simple_white",
-        xaxis_title="",
-        yaxis_title="",
-        showlegend=False
-    )
-
-    st.plotly_chart(fig2, use_container_width=True)
-
+    st.plotly_chart(plot_styles(style_counts), use_container_width=True)
 
     # =============================
     # 🧠 COACH
