@@ -84,6 +84,37 @@ def clean_data(df):
 
 
 # =========================================================
+# 🧗 CONVERSION FONTAINEBLEAU
+# =========================================================
+def to_font_grade(level, sub_level):
+
+    base_map = {
+        1: "3",
+        2: "4",
+        3: "5",
+        4: "6A",
+        5: "6B",
+        6: "6C",
+        7: "7A",
+        8: "7B"
+    }
+
+    base = base_map.get(int(level), "?")
+
+    if sub_level <= 1:
+        suffix = "-"
+    elif sub_level <= 3:
+        suffix = ""
+    else:
+        suffix = "+"
+
+    if base in ["3", "4", "5"]:
+        return base
+
+    return f"{base}{suffix}"
+
+
+# =========================================================
 # 📅 FILTERS
 # =========================================================
 def filter_current_quarter(df):
@@ -118,6 +149,7 @@ def filter_last_12_months(df):
 # 📊 CALCULS
 # =========================================================
 def compute_weekly_score(df):
+
     df = df.copy()
     df["week"] = df["date"].dt.to_period("W")
 
@@ -132,6 +164,7 @@ def compute_weekly_score(df):
 
 
 def compute_styles_top20(df):
+
     df = df.copy()
     df = df.sort_values("grade_score", ascending=False)
 
@@ -149,6 +182,7 @@ def compute_styles_top20(df):
 
 
 def get_best_blocks(df):
+
     best_all = df.loc[df["grade_score"].idxmax()]
 
     df_flash = df[df["flashé"] == "Oui"]
@@ -162,6 +196,7 @@ def get_best_blocks(df):
 
 
 def get_coach_message(df_12m, df_current_q, df_previous_q):
+
     sessions_current = df_current_q["date"].dt.date.nunique()
     sessions_previous = df_previous_q["date"].dt.date.nunique()
 
@@ -191,6 +226,7 @@ def get_coach_message(df_12m, df_current_q, df_previous_q):
 # 📈 VISUALISATIONS
 # =========================================================
 def plot_weekly(weekly):
+
     fig = px.area(
         weekly,
         x="week",
@@ -218,6 +254,7 @@ def plot_weekly(weekly):
 
 
 def plot_styles(style_counts):
+
     fig = px.bar(style_counts, x="style", y="count")
 
     fig.update_layout(
@@ -247,7 +284,7 @@ if uploaded_file:
     best_all, best_flash = get_best_blocks(df_12m)
 
     # =========================================================
-    # 📊 SYNTHÈSE (FIX KPI)
+    # 📊 SYNTHÈSE
     # =========================================================
     st.markdown("### Synthèse")
 
@@ -272,12 +309,12 @@ if uploaded_file:
 
     col2.metric(
         "Bloc le plus dur",
-        int(best_all["grade_score"])
+        to_font_grade(best_all["level"], best_all["sub_level"])
     )
 
     col3.metric(
         "Meilleur flash",
-        int(best_flash["grade_score"]) if best_flash is not None else "N/A"
+        to_font_grade(best_flash["level"], best_flash["sub_level"]) if best_flash is not None else "N/A"
     )
 
     # =========================================================
