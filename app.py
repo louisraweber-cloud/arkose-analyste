@@ -42,7 +42,7 @@ def clean_data(df):
 
 
 # =============================
-# 📊 TRIMESTRES
+# 📅 FILTRES
 # =============================
 def filter_current_quarter(df):
     today = pd.Timestamp.today()
@@ -61,8 +61,15 @@ def filter_previous_quarter(df):
     ]
 
 
+def filter_last_12_months(df):
+    today = pd.Timestamp.today()
+    one_year_ago = today - pd.DateOffset(years=1)
+
+    return df[(df["date"] >= one_year_ago) & (df["date"] <= today)]
+
+
 # =============================
-# 📈 HEBDO SCORE
+# 📈 WEEKLY SCORE
 # =============================
 def compute_weekly_score(df):
 
@@ -99,6 +106,23 @@ def compute_styles_top20(df):
     style_counts.columns = ["style", "count"]
 
     return style_counts
+
+
+# =============================
+# 🏆 BEST BLOCKS (12M)
+# =============================
+def get_best_blocks(df):
+
+    best_all = df.loc[df["grade_score"].idxmax()]
+
+    df_flash = df[df["flashé"] == "Oui"]
+
+    if len(df_flash) > 0:
+        best_flash = df_flash.loc[df_flash["grade_score"].idxmax()]
+    else:
+        best_flash = None
+
+    return best_all, best_flash
 
 
 # =============================
@@ -172,15 +196,18 @@ if uploaded_file:
     df = clean_data(df)
 
     # =============================
-    # 📅 TRIMESTRE DATA
+    # 📅 DATA
     # =============================
-    df_current = filter_current_quarter(df)
-    df_previous = filter_previous_quarter(df)
+    df_current_q = filter_current_quarter(df)
+    df_previous_q = filter_previous_quarter(df)
+    df_12m = filter_last_12_months(df)
 
-    weekly = compute_weekly_score(df_current)
+    weekly_12m = compute_weekly_score(df_12m)
+
+    best_all, best_flash = get_best_blocks(df_12m)
 
     # =============================
-    # 📊 KPI SEANCES
+    # 📊 KPI
     # =============================
     st.markdown("### Synthèse")
 
@@ -188,8 +215,8 @@ if uploaded_file:
     current_q = today.to_period("Q")
     prev_q = current_q - 1
 
-    sessions_current = df_current["date"].dt.date.nunique()
-    sessions_previous = df_previous["date"].dt.date.nunique()
+    sessions_current = df_current_q["date"].dt.date.nunique()
+    sessions_previous = df_previous_q["date"].dt.date.nunique()
 
     if sessions_previous > 0:
         delta = sessions_current - sessions_previous
@@ -198,7 +225,7 @@ if uploaded_file:
         delta = 0
         pct = 0
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
 
     col1.metric(
         f"Séances T{current_q.quarter} {current_q.year}",
@@ -206,17 +233,33 @@ if uploaded_file:
         f"{delta:+} ({pct:.0f}%) vs T{prev_q.quarter} {prev_q.year}"
     )
 
+    col2.metric(
+        "Bloc le plus dur (12 mois)",
+        int(best_all["grade_score"])
+    )
+
+    if best_flash is not None:
+        col3.metric(
+            "Meilleur flash (12 mois)",
+            int(best_flash["grade_score"])
+        )
+    else:
+        col3.metric(
+            "Meilleur flash (12 mois)",
+            "N/A"
+        )
+
+
     # =============================
     # 📊 GRAPH 1
     # =============================
     st.markdown("## Volume de la semaine")
 
     st.caption(
-        "Le volume correspond à la somme des difficultés des blocs réalisés chaque semaine "
-        "(Jaune 1 barre = 1 point. +1 point pour chaque barre supplémentaire et donc une verte 2 barres = 7 points)."
+        "Volume = somme des difficultés des blocs réalisés chaque semaine (sur les 12 derniers mois)."
     )
 
-    st.plotly_chart(plot_weekly(weekly), use_container_width=True)
+    st.plotly_chart(plot_weekly(weekly_12m), use_container_width=True)
 
 
     # =============================
@@ -225,10 +268,10 @@ if uploaded_file:
     st.markdown("## Analyse des styles")
 
     st.caption(
-        "Répartition des styles parmi les 20% des voies les plus difficiles réalisées sur la période."
+        "Répartition des styles parmi les 20% des voies les plus difficiles sur les 12 derniers mois."
     )
 
-    style_counts = compute_styles_top20(df_current)
+    style_counts = compute_styles_top20(df_12m)
 
     st.plotly_chart(plot_styles(style_counts), use_container_width=True)
 
