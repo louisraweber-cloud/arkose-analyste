@@ -115,21 +115,6 @@ def to_font_grade(level, sub_level):
 
 
 # =========================================================
-# 🎨 ARKOSE COLORS
-# =========================================================
-def arkose_level_icon(level):
-    mapping = {
-        1: "🟡",
-        2: "🟢",
-        3: "🔵",
-        4: "🔴",
-        5: "⚫",
-        6: "🟣"
-    }
-    return mapping.get(int(level), "?")
-
-
-# =========================================================
 # 📅 FILTERS
 # =========================================================
 def filter_current_quarter(df):
@@ -224,15 +209,15 @@ def get_coach_message(df_12m, df_current_q, df_previous_q):
     messages = []
 
     if sessions_current < sessions_previous:
-        messages.append("📉 Moins de séances que le trimestre précédent.")
+        messages.append("Moins de séances que le trimestre précédent.")
     else:
-        messages.append("📈 Bonne régularité ce trimestre.")
+        messages.append("Bonne régularité ce trimestre.")
 
     if last_week < weekly_avg * 0.6:
-        messages.append("⚡ Semaine légère → récup ou technique.")
+        messages.append("Semaine légère → récup ou technique.")
 
     if len(messages) == 0:
-        messages.append("🧠 Continue sur ta dynamique actuelle.")
+        messages.append("Continue sur ta dynamique actuelle.")
 
     return " ".join(messages)
 
@@ -350,22 +335,22 @@ if uploaded_file:
     )
 
     # =========================================================
-    # 🧠 COACH
+    # COACH
     # =========================================================
-    st.markdown("## 🧠 Un mot de ton Coach")
+    st.markdown("## Un mot de ton Coach")
     st.info(get_coach_message(df_12m, df_current_q, df_previous_q))
 
     # =========================================================
-    # 🏚️ GRENIER
+    # GRENIER
     # =========================================================
     st.markdown("---")
-    st.markdown("## 🏚️ Grenier")
+    st.markdown("## Grenier")
 
     with st.expander("📘 Échelle Arkose → Fontainebleau"):
 
         st.markdown(f"""
-|  | Barre 1 | Barre 2 | Barre 3 | Barre 4 | Barre 5 |
-| ------- | ------- | ------- | ------- | ------- | -------- |
+|  | 1 barre | 2 barres | 3 barres | 4 barres | 5 barres |
+| - | ------- | -------- | -------- | -------- | -------- |
 | 🟡 | 3 | 3+ | 4A | 4A+ | 4B |
 | 🟢 | 4B | 4C | 5A | 5A+ | 5B |
 | 🔵 | 5A+ | 5B | 5B+ | 5C | 5C+ |
