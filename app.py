@@ -86,6 +86,16 @@ def clean_data(df):
         .str.strip()
     )
 
+    # NORMALISATION IMPORTANT
+    df["couleur des prises"] = df["couleur des prises"].replace({
+        "jaunes": "jaune",
+        "vertes": "vert",
+        "bleues": "bleu",
+        "rouges": "rouge",
+        "noires": "noir",
+        "violettes": "violet"
+    })
+
     if "salle" not in df.columns:
         df["salle"] = "Inconnue"
 
@@ -127,18 +137,15 @@ def get_best_blocks(df):
     df["rank"] = df["couleur des prises"].map(COLOR_RANK)
     df = df.dropna(subset=["rank"])
 
-    if len(df) == 0:
+    if df.empty:
         return None, None
 
     best_all = df.loc[df["rank"].idxmax()]
 
     df_flash = df[df["flashé"].astype(str).str.lower().str.strip() == "oui"]
+    df_flash = df_flash.dropna(subset=["rank"])
 
-    if len(df_flash) > 0:
-        df_flash = df_flash.dropna(subset=["rank"])
-        best_flash = df_flash.loc[df_flash["rank"].idxmax()]
-    else:
-        best_flash = None
+    best_flash = df_flash.loc[df_flash["rank"].idxmax()] if not df_flash.empty else None
 
     return best_all, best_flash
 
@@ -150,7 +157,7 @@ def compute_styles_top20(df):
 
     df = df.copy()
 
-    df = df[df["couleur des prises"].isin(["rouge", "noir", "violet"])]
+    df = df[df["couleur des prises"].isin(COLOR_RANK.keys())]
 
     styles = (
         df["styles"]
@@ -213,7 +220,7 @@ if st.session_state.file_uploaded:
     )
 
     st.caption(
-        f"Salle : {best_all['salle'] if best_all is not None and 'salle' in best_all else 'Inconnue'}"
+        f"Salle : {best_all['salle'] if best_all is not None else 'Inconnue'}"
     )
 
     col3.metric(
@@ -223,7 +230,7 @@ if st.session_state.file_uploaded:
 
     if best_flash is not None:
         st.caption(
-            f"Salle : {best_flash['salle'] if 'salle' in best_flash else 'Inconnue'}"
+            f"Salle : {best_flash['salle'] if best_flash is not None else 'Inconnue'}"
         )
 
 
