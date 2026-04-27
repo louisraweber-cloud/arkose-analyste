@@ -11,7 +11,7 @@ st.set_page_config(page_title="Arkose Analyste", layout="centered")
 
 
 # =========================================================
-# 🧠 STATE (SAFE INIT — FIX IMPORTANT)
+# 🧠 STATE (SAFE INIT)
 # =========================================================
 st.session_state.setdefault("file_uploaded", False)
 st.session_state.setdefault("processing", False)
@@ -92,7 +92,7 @@ def to_font_grade(color, sub_level):
 
 
 # =========================================================
-# 🧹 CLEAN DATA
+# 🧼 CLEAN DATA
 # =========================================================
 def clean_data(df):
     df = df.copy()
@@ -109,6 +109,12 @@ def clean_data(df):
     df = df.dropna(subset=["date", "color", "sub_level"])
 
     return df
+
+
+def format_salle(value):
+    if pd.isna(value):
+        return "N/A"
+    return str(value).replace("arkose/", "").strip().title()
 
 
 # =========================================================
@@ -142,13 +148,10 @@ def filter_last_12_months(df):
 def compute_weekly_score(df):
 
     df = df.copy()
-
     df["week"] = df["date"].dt.to_period("W").dt.start_time
     df["week"] = pd.to_datetime(df["week"])
 
-    weekly = df.groupby("week").size().reset_index(name="count")
-
-    return weekly
+    return df.groupby("week").size().reset_index(name="count")
 
 
 def compute_styles_top20(df):
@@ -224,7 +227,7 @@ if st.session_state.get("file_uploaded", False):
     best_all, best_flash = get_best_blocks(df_12m)
 
     if best_all is None:
-        st.warning("Pas assez de données pour analyser les blocs")
+        st.warning("Pas assez de données pour analyser")
         st.stop()
 
     # =========================
@@ -232,19 +235,39 @@ if st.session_state.get("file_uploaded", False):
     # =========================
     st.markdown("### Synthèse")
 
+    current_sessions = df_current_q["date"].nunique()
+    previous_sessions = df_previous_q["date"].nunique()
+
+    if previous_sessions > 0:
+        delta = current_sessions - previous_sessions
+        pct = (delta / previous_sessions) * 100
+        delta_text = f"{delta:+} ({pct:.0f}%) vs trimestre précédent"
+    else:
+        delta_text = "vs trimestre précédent"
+
     col1, col2, col3 = st.columns(3)
 
-    col1.metric("Séances", df_current_q["date"].nunique())
+    col1.metric("Séances", current_sessions, delta_text)
 
     col2.metric(
         "Bloc le plus dur",
         to_font_grade(best_all["color"], best_all["sub_level"])
     )
 
-    col3.metric(
-        "Meilleur flash",
-        to_font_grade(best_flash["color"], best_flash["sub_level"]) if best_flash is not None else "N/A"
+    col2.caption(
+        f"Salle : {format_salle(best_all['salle']) if 'salle' in best_all else 'N/A'}"
     )
+
+    if best_flash is not None:
+        col3.metric(
+            "Meilleur flash",
+            to_font_grade(best_flash["color"], best_flash["sub_level"])
+        )
+        col3.caption(
+            f"Salle : {format_salle(best_flash['salle']) if 'salle' in best_flash else 'N/A'}"
+        )
+    else:
+        col3.metric("Meilleur flash", "N/A")
 
     # =========================
     # GRAPHE UNIQUE
@@ -256,12 +279,6 @@ if st.session_state.get("file_uploaded", False):
         plot_styles(compute_styles_top20(df_12m)),
         use_container_width=True
     )
-
-    # =========================
-    # COACH
-    # =========================
-    st.markdown("## Un mot du Coach")
-    st.info("Continue à grimper régulièrement et proprement.")
 
     # =========================
     # GRENIER
