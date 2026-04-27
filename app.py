@@ -32,17 +32,17 @@ if st.session_state.file_uploaded:
 
 
 # =========================================================
-# 🟦 LANDING (SIMPLIFIÉE)
+# 🟦 LANDING (SANS EMOJIS)
 # =========================================================
 if not st.session_state.file_uploaded and not st.session_state.processing:
 
-
     st.markdown("""
-    
-1. [Accéde à ton compte Arkose](https://accounts.arkose.com/?userEdit=true)  
-2. Connecte-toi  
+### Importer tes données Arkose
+
+1. Accéder à ton compte : https://accounts.arkose.com/?userEdit=true  
+2. Se connecter  
 3. Scrolle un peu vers le bas puis clique sur **Exporter mes données**  
-4. Importe le fichier Excel ci-dessous  
+4. Importer le fichier Excel ci-dessous  
 """)
 
     uploaded_file = st.file_uploader(
@@ -57,12 +57,12 @@ if not st.session_state.file_uploaded and not st.session_state.processing:
 
 
 # =========================================================
-# ⏳ LOADING SCREEN (SIMPLIFIÉ)
+# ⏳ LOADING
 # =========================================================
 if st.session_state.processing:
 
     st.progress(0.5)
-    st.write("Chargement des données…")
+    st.write("Chargement des données...")
 
     time.sleep(0.3)
 
@@ -95,7 +95,7 @@ def clean_data(df):
 
 
 # =========================================================
-# 🧗 FONTAINEBLEAU
+# 🧗 GRADES
 # =========================================================
 def to_font_grade(level, sub_level):
 
@@ -123,21 +123,6 @@ def to_font_grade(level, sub_level):
         return base
 
     return f"{base}{suffix}"
-
-
-# =========================================================
-# 🎨 COULEURS ARKOSE
-# =========================================================
-def arkose_level_icon(level):
-    mapping = {
-        1: "🟡",
-        2: "🟢",
-        3: "🔵",
-        4: "🔴",
-        5: "⚫",
-        6: "🟣"
-    }
-    return mapping.get(int(level), "?")
 
 
 # =========================================================
@@ -189,10 +174,21 @@ def compute_styles_top20(df):
 
     top = df.head(int(len(df) * 0.2))
 
-    styles = top["styles"].dropna().str.split("#").explode().str.strip()
+    styles = (
+        top["styles"]
+        .dropna()
+        .astype(str)
+        .str.split("#")
+        .explode()
+        .str.strip()
+    )
+
     styles = styles[styles != ""]
 
-    return styles.value_counts().reset_index(name="count").rename(columns={"index": "style"})
+    result = styles.value_counts().reset_index()
+    result.columns = ["style", "count"]
+
+    return result
 
 
 def get_best_blocks(df):
@@ -231,6 +227,9 @@ def plot_weekly(df):
 
 
 def plot_styles(df):
+
+    if df.empty:
+        return px.bar(title="Aucune donnée")
 
     fig = px.bar(df, x="style", y="count")
     fig.update_layout(template="simple_white", showlegend=False)
@@ -287,7 +286,7 @@ if st.session_state.file_uploaded:
     # COACH
     # =========================
     st.markdown("## Un mot du Coach")
-    st.info("Continue à grimper régulièrement et proprement.")
+    st.info("Continue sur ta dynamique actuelle.")
 
     # =========================
     # GRENIER
