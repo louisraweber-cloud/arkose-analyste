@@ -42,7 +42,7 @@ def clean_data(df):
 
 
 # =============================
-# 📅 FILTRES TRIMESTRE (FAIR COMPARISON)
+# 📅 TRIMESTRES (FAIR COMPARISON)
 # =============================
 def filter_current_quarter(df):
     today = pd.Timestamp.today()
@@ -133,65 +133,33 @@ def get_best_blocks(df):
 
 
 # =============================
-# 📈 GRAPH 1
+# 🧠 COACH
 # =============================
-def plot_weekly(weekly):
+def get_coach_message(df_12m, df_current_q, df_previous_q):
 
-    fig = px.area(
-        weekly,
-        x="week",
-        y="total_score",
-        line_shape="spline"
-    )
+    sessions_current = df_current_q["date"].dt.date.nunique()
+    sessions_previous = df_previous_q["date"].dt.date.nunique()
 
-    fig.update_traces(line=dict(width=3), opacity=0.9)
+    weekly_avg = df_12m.groupby(df_12m["date"].dt.to_period("W")).size().mean()
 
-    fig.add_scatter(
-        x=weekly["week"],
-        y=weekly["moving_avg"],
-        mode="lines",
-        line=dict(width=2, dash="dash"),
-        name="Moyenne 4 semaines"
-    )
+    last_week = df_12m[
+        df_12m["date"] >= (pd.Timestamp.today() - pd.Timedelta(days=7))
+    ].shape[0]
 
-    fig.update_layout(
-        template="simple_white",
-        yaxis_title="",
-        xaxis_title="",
-        showlegend=False,
-        hovermode="x unified",
-        margin=dict(l=10, r=10, t=10, b=10)
-    )
+    messages = []
 
-    fig.update_xaxes(showgrid=False, tickformat="%b %y")
-    fig.update_yaxes(showgrid=True, gridcolor="rgba(0,0,0,0.05)")
+    if sessions_current < sessions_previous:
+        messages.append("📉 Moins de séances que le trimestre précédent.")
+    else:
+        messages.append("📈 Bonne régularité ce trimestre.")
 
-    return fig
+    if last_week < weekly_avg * 0.6:
+        messages.append("⚡ Semaine légère → récup ou technique.")
 
+    if len(messages) == 0:
+        messages.append("🧠 Continue sur ta dynamique actuelle.")
 
-# =============================
-# 📊 GRAPH 2
-# =============================
-def plot_styles(style_counts):
-
-    fig = px.bar(
-        style_counts,
-        x="style",
-        y="count"
-    )
-
-    fig.update_layout(
-        template="simple_white",
-        xaxis_title="",
-        yaxis_title="",
-        showlegend=False,
-        margin=dict(l=10, r=10, t=40, b=10)
-    )
-
-    fig.update_xaxes(tickangle=45, showgrid=False)
-    fig.update_yaxes(showgrid=True, gridcolor="rgba(0,0,0,0.05)")
-
-    return fig
+    return " ".join(messages)
 
 
 # =============================
@@ -203,7 +171,7 @@ if uploaded_file:
     df = clean_data(df)
 
     # =============================
-    # 📅 DATA
+    # 📅 DATASETS
     # =============================
     df_current_q = filter_current_quarter(df)
     df_previous_q = filter_previous_quarter_same_period(df)
@@ -232,12 +200,15 @@ if uploaded_file:
         delta = 0
         pct = 0
 
+    arrow = "↑" if delta >= 0 else "↓"
+
     col1, col2, col3 = st.columns(3)
 
     col1.metric(
         f"Séances T{current_q.quarter} {current_q.year}",
         sessions_current,
-        f"{delta:+} ({pct:.0f}%) vs T{prev_q.quarter} {prev_q.year} (même période)"
+        f"{arrow} {delta:+} ({pct:.0f}%) vs T{prev_q.quarter} {prev_q.year}",
+        delta_color="normal"
     )
 
     col2.metric(
@@ -266,7 +237,29 @@ if uploaded_file:
         "Volume = somme des difficultés des blocs réalisés chaque semaine (sur les 12 derniers mois)."
     )
 
-    st.plotly_chart(plot_weekly(weekly_12m), use_container_width=True)
+    fig = px.area(
+        weekly_12m,
+        x="week",
+        y="total_score",
+        line_shape="spline"
+    )
+
+    fig.add_scatter(
+        x=weekly_12m["week"],
+        y=weekly_12m["moving_avg"],
+        mode="lines",
+        line=dict(width=2, dash="dash"),
+        name="Moyenne 4 semaines"
+    )
+
+    fig.update_layout(
+        template="simple_white",
+        yaxis_title="",
+        xaxis_title="",
+        showlegend=False
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
 
 
     # =============================
@@ -280,7 +273,20 @@ if uploaded_file:
 
     style_counts = compute_styles_top20(df_12m)
 
-    st.plotly_chart(plot_styles(style_counts), use_container_width=True)
+    fig2 = px.bar(
+        style_counts,
+        x="style",
+        y="count"
+    )
+
+    fig2.update_layout(
+        template="simple_white",
+        xaxis_title="",
+        yaxis_title="",
+        showlegend=False
+    )
+
+    st.plotly_chart(fig2, use_container_width=True)
 
 
     # =============================
@@ -288,4 +294,4 @@ if uploaded_file:
     # =============================
     st.markdown("## 🧠 Un mot de ton Coach")
 
-    st.info("Continue à grimper propre et régulier.")
+    st.info(get_coach_message(df_12m, df_current_q, df_previous_q))
