@@ -42,16 +42,27 @@ def clean_data(df):
 
 
 # =============================
-# 📅 FILTRES ANNÉES
+# 📊 FILTRES YTD
 # =============================
-def filter_current_year(df):
-    year = pd.Timestamp.today().year
-    return df[df["date"].dt.year == year]
+def filter_ytd_current(df):
+    today = pd.Timestamp.today()
+    start_year = pd.Timestamp(today.year, 1, 1)
+    
+    return df[
+        (df["date"] >= start_year) &
+        (df["date"] <= today)
+    ]
 
 
-def filter_previous_year(df):
-    year = pd.Timestamp.today().year - 1
-    return df[df["date"].dt.year == year]
+def filter_ytd_previous(df):
+    today = pd.Timestamp.today()
+    same_day_last_year = today - pd.DateOffset(years=1)
+    start_last_year = pd.Timestamp(today.year - 1, 1, 1)
+    
+    return df[
+        (df["date"] >= start_last_year) &
+        (df["date"] <= same_day_last_year)
+    ]
 
 
 # =============================
@@ -196,16 +207,19 @@ if uploaded_file:
     df = clean_data(df)
     
     # =============================
-    # 📅 DATA ANNÉES
+    # 📊 DATA YTD
     # =============================
-    df_current = filter_current_year(df)
-    df_previous = filter_previous_year(df)
+    df_current = filter_ytd_current(df)
+    df_previous = filter_ytd_previous(df)
     
     weekly = compute_weekly_score(df_current)
     
     # =============================
     # 📊 KPI
     # =============================
+    st.markdown("### Synthèse")
+
+    today = pd.Timestamp.today()
     current_year = today.year
     previous_year = current_year - 1
 
@@ -213,17 +227,23 @@ if uploaded_file:
     sessions_previous = df_previous["date"].dt.date.nunique()
 
     if sessions_previous > 0:
-    delta = sessions_current - sessions_previous
-    pct = (delta / sessions_previous) * 100
+        delta = sessions_current - sessions_previous
+        pct = (delta / sessions_previous) * 100
     else:
-    delta = 0
-    pct = 0
+        delta = 0
+        pct = 0
+
+    col1, col2, col3 = st.columns(3)
 
     col1.metric(
-    f"Séances {current_year} (YTD)",
-    sessions_current,
-    f"{delta:+} ({pct:.0f}%) vs YTD {previous_year}"
+        f"Séances {current_year} (YTD)",
+        sessions_current,
+        f"{delta:+} ({pct:.0f}%) vs YTD {previous_year}"
     )
+
+    col2.metric("Volume total", int(df_current["grade_score"].sum()))
+    col3.metric("Pic hebdo", int(weekly["total_score"].max()))
+
 
     # =============================
     # 📊 GRAPH 1 - VOLUME
