@@ -43,7 +43,7 @@ with col_button:
 
 
 # =========================================================
-# 📂 UPLOAD (STATE)
+# 📂 UPLOAD
 # =========================================================
 if "file_uploaded" not in st.session_state:
     st.session_state.file_uploaded = False
@@ -287,6 +287,18 @@ if uploaded_file:
     # 📊 SYNTHÈSE
     # =========================================================
     st.markdown("### Synthèse")
+
+    with st.expander("📘 Échelle Arkose → Fontainebleau"):
+        st.markdown("""
+| Niveau Arkose | Barre 1 | Barre 2 | Barre 3 | Barre 4 | Barre 5 |
+| ------------- | ------- | ------- | ------- | ------- | -------- |
+| **1** | 3 | 3+ | 4A | 4A+ | 4B |
+| **2** | 4B | 4C | 5A | 5A+ | 5B |
+| **3** | 5A+ | 5B | 5B+ | 5C | 5C+ |
+| **4** | 5C+ | 6A | 6A+ | 6B | 6B+ |
+| **5** | 6B | 6B+ | 6C | 6C+ | 7A |
+| **6** | 7A | 7A+ | 7B | 7B+ | 7C / 7C+ |
+""")
 
     today = pd.Timestamp.today()
     current_q = today.to_period("Q")
