@@ -7,7 +7,17 @@ import plotly.express as px
 # 🎯 CONFIG
 # =========================================================
 st.set_page_config(page_title="Arkose Analyste", layout="centered")
-st.title("Arkose Analyste")
+
+col_title, col_button = st.columns([10, 1])
+
+with col_title:
+    st.title("Arkose Analyste")
+
+with col_button:
+    if "file_uploaded" in st.session_state and st.session_state.file_uploaded:
+        if st.button("🔄", help="Charger un autre fichier"):
+            st.session_state.file_uploaded = False
+            st.rerun()
 
 
 # =========================================================
@@ -28,10 +38,6 @@ if not st.session_state.file_uploaded:
         st.rerun()
 else:
     uploaded_file = st.session_state.file
-
-    if st.button("🔄 Charger un autre fichier"):
-        st.session_state.file_uploaded = False
-        st.rerun()
 
 
 # =========================================================
