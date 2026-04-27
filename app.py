@@ -32,29 +32,17 @@ if st.session_state.file_uploaded:
 
 
 # =========================================================
-# 🟦 LANDING
+# 🟦 LANDING (SIMPLIFIÉE)
 # =========================================================
 if not st.session_state.file_uploaded and not st.session_state.processing:
 
-    st.markdown("## Analyse tes performances d’escalade")
-
     st.markdown("""
-Cette application te permet de suivre :
-
-- ton volume d’entraînement  
-- ta progression  
-- tes styles dominants  
-- tes meilleurs blocs  
-
----
-
-### 📥 Étapes
+### 📥 Importer tes données Arkose
 
 1. 👉 [Accéder à ton compte Arkose](https://accounts.arkose.com/?userEdit=true)  
 2. Se connecter  
 3. Cliquer sur **Exporter mes données**  
-4. Télécharger le fichier Excel  
-5. L’importer ci-dessous
+4. Importer le fichier Excel ci-dessous  
 """)
 
     uploaded_file = st.file_uploader(
@@ -69,24 +57,14 @@ Cette application te permet de suivre :
 
 
 # =========================================================
-# ⏳ LOADING SCREEN
+# ⏳ LOADING SCREEN (SIMPLIFIÉ)
 # =========================================================
 if st.session_state.processing:
 
-    st.markdown("## Analyse de tes performances")
-
-    st.progress(0.2)
+    st.progress(0.5)
     st.write("Chargement des données…")
 
-    df_temp = pd.read_excel(st.session_state.temp_file)
-
-    st.progress(0.6)
-    st.write("Analyse des blocs…")
-
-    time.sleep(0.4)
-
-    st.progress(1.0)
-    st.write("Finalisation…")
+    time.sleep(0.3)
 
     st.session_state.file_uploaded = True
     st.session_state.file = st.session_state.temp_file
@@ -148,7 +126,7 @@ def to_font_grade(level, sub_level):
 
 
 # =========================================================
-# 🎨 COLORS
+# 🎨 COULEURS ARKOSE
 # =========================================================
 def arkose_level_icon(level):
     mapping = {
@@ -173,7 +151,6 @@ def filter_current_quarter(df):
 
 def filter_previous_quarter_same_period(df):
     today = pd.Timestamp.today()
-
     start_current = today.to_period("Q").start_time
     start_prev = (today.to_period("Q") - 1).start_time
 
@@ -232,23 +209,8 @@ def get_best_blocks(df):
     return best_all, best_flash
 
 
-def get_coach_message(df_12m, df_current_q, df_previous_q):
-
-    cur = df_current_q["date"].dt.date.nunique()
-    prev = df_previous_q["date"].dt.date.nunique()
-
-    msgs = []
-
-    if cur >= prev:
-        msgs.append("Bonne régularité ce trimestre.")
-    else:
-        msgs.append("Moins de séances que le trimestre précédent.")
-
-    return " ".join(msgs)
-
-
 # =========================================================
-# 📈 VISU
+# 📈 VISUALISATIONS
 # =========================================================
 def plot_weekly(df):
 
@@ -300,7 +262,12 @@ if st.session_state.file_uploaded:
     col1, col2, col3 = st.columns(3)
 
     col1.metric("Séances", df_current_q["date"].nunique())
-    col2.metric("Bloc le plus dur", to_font_grade(best_all["level"], best_all["sub_level"]))
+
+    col2.metric(
+        "Bloc le plus dur",
+        to_font_grade(best_all["level"], best_all["sub_level"])
+    )
+
     col3.metric(
         "Meilleur flash",
         to_font_grade(best_flash["level"], best_flash["sub_level"]) if best_flash is not None else "N/A"
@@ -320,16 +287,14 @@ if st.session_state.file_uploaded:
     # COACH
     # =========================
     st.markdown("## Un mot du Coach")
-    st.info(get_coach_message(df_12m, df_current_q, df_previous_q))
+    st.info("Continue à grimper régulièrement et proprement.")
 
     # =========================
     # GRENIER
     # =========================
     st.markdown("## Grenier")
 
-    with st.expander("Échelle Arkose → Fontainebleau"):
-
-        st.markdown("""
+    st.markdown("""
 |  | 1 barre | 2 barres | 3 barres | 4 barres | 5 barres |
 | - | ------- | -------- | -------- | -------- | -------- |
 | 🟡 | 3 | 3+ | 4A | 4A+ | 4B |
