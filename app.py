@@ -53,7 +53,7 @@ if not st.session_state.file_uploaded:
 
 
 # =========================================================
-# 🧹 DATA CLEANING
+# 🧹 CLEAN DATA
 # =========================================================
 def clean_data(df):
     df = df.copy()
@@ -70,11 +70,14 @@ def clean_data(df):
 
     df["grade_score"] = (df["level"] - 6) * 5 + df["sub_level"]
 
+    if "salle" not in df.columns:
+        df["salle"] = "Inconnue"
+
     return df
 
 
 # =========================================================
-# 🧗 GRADES
+# 🧗 GRADES FONTAINEBLEAU
 # =========================================================
 def to_font_grade(level, sub_level):
 
@@ -82,21 +85,25 @@ def to_font_grade(level, sub_level):
         1: "3",
         2: "4",
         3: "5",
-        4: "6A",
-        5: "6B",
-        6: "6C",
-        7: "7A",
-        8: "7B"
+        4: "6a",
+        5: "6b",
+        6: "6c",
+        7: "7a",
+        8: "7b"
     }
 
     base = base_map.get(int(level), "?")
 
     if sub_level <= 1:
-        suffix = "-"
-    elif sub_level <= 3:
         suffix = ""
-    else:
+    elif sub_level == 2:
         suffix = "+"
+    elif sub_level == 3:
+        suffix = "+"
+    elif sub_level >= 4:
+        suffix = "++"
+    else:
+        suffix = ""
 
     if base in ["3", "4", "5"]:
         return base
@@ -183,11 +190,6 @@ if st.session_state.file_uploaded:
 
     best_all, best_flash = get_best_blocks(df_12m)
 
-    # =========================
-    # SYNTHÈSE
-    # =========================
-    st.markdown("### Synthèse")
-
     today = pd.Timestamp.today()
     year = today.year
     quarter = today.to_period("Q").quarter
@@ -198,6 +200,12 @@ if st.session_state.file_uploaded:
     delta = sessions_current - sessions_previous
     pct = (delta / sessions_previous * 100) if sessions_previous > 0 else 0
 
+
+    # =====================================================
+    # 🧠 SYNTHÈSE
+    # =====================================================
+    st.markdown("### Synthèse")
+
     col1, col2, col3 = st.columns(3)
 
     col1.metric(
@@ -207,18 +215,23 @@ if st.session_state.file_uploaded:
     )
 
     col2.metric(
-        f"Bloc le plus dur {year}",
+        f"Meilleur Top {year}",
         to_font_grade(best_all["level"], best_all["sub_level"])
     )
+    st.caption(f"Salle : {best_all.get('salle', 'Inconnue')}")
 
     col3.metric(
-        f"Meilleur flash {year}",
+        f"Meilleur Flash {year}",
         to_font_grade(best_flash["level"], best_flash["sub_level"]) if best_flash is not None else "N/A"
     )
 
-    # =========================
-    # GRAPHS
-    # =========================
+    if best_flash is not None:
+        st.caption(f"Salle : {best_flash.get('salle', 'Inconnue')}")
+
+
+    # =====================================================
+    # 📊 GRAPHIQUE STYLES
+    # =====================================================
     st.markdown("## Analyse des styles")
     st.caption("Top 20% des voies les plus dures sur 12 mois")
 
@@ -227,24 +240,26 @@ if st.session_state.file_uploaded:
         use_container_width=True
     )
 
-    # =========================
-    # COACH
-    # =========================
+
+    # =====================================================
+    # 🧠 COACH
+    # =====================================================
     st.markdown("## Un mot du Coach")
     st.info("Continue sur ta dynamique actuelle.")
 
-    # =========================
-    # ANNEXE
-    # =========================
+
+    # =====================================================
+    # 📦 ANNEXE
+    # =====================================================
     st.markdown("## Annexe")
 
     st.markdown("""
 |  | 1 barre | 2 barres | 3 barres | 4 barres | 5 barres |
 | - | ------- | -------- | -------- | -------- | -------- |
-| 🟡 | 3 | 3+ | 4A | 4A+ | 4B |
-| 🟢 | 4B | 4C | 5A | 5A+ | 5B |
-| 🔵 | 5A+ | 5B | 5B+ | 5C | 5C+ |
-| 🔴 | 5C+ | 6A | 6A+ | 6B | 6B+ |
-| ⚫ | 6B | 6B+ | 6C | 6C+ | 7A |
-| 🟣 | 7A | 7A+ | 7B | 7B+ | 7C / 7C+ |
+| 🟡 | 3 | 3+ | 4a | 4a+ | 4b |
+| 🟢 | 4b | 4c | 5a | 5a+ | 5b |
+| 🔵 | 5a+ | 5b | 5b+ | 5c | 5c+ |
+| 🔴 | 5c+ | 6a | 6a+ | 6b | 6b+ |
+| ⚫ | 6b | 6b+ | 6c | 6c+ | 7a |
+| 🟣 | 7a | 7a+ | 7b | 7b+ | 7c / 7c+ |
 """)
