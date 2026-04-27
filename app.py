@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import hashlib
 
 
 # =============================
@@ -73,6 +74,7 @@ def filter_last_12_months(df):
 # =============================
 def compute_weekly_score(df):
 
+    df = df.copy()
     df["week"] = df["date"].dt.to_period("W")
 
     weekly = df.groupby("week").agg(
@@ -80,7 +82,6 @@ def compute_weekly_score(df):
     ).reset_index()
 
     weekly["week"] = weekly["week"].dt.start_time
-
     weekly["moving_avg"] = weekly["total_score"].rolling(4).mean()
 
     return weekly
@@ -123,6 +124,41 @@ def get_best_blocks(df):
         best_flash = None
 
     return best_all, best_flash
+
+
+# =============================
+# 🧠 COACH INTELLIGENT
+# =============================
+def get_coach_message(df_12m, df_current_q, df_previous_q):
+
+    sessions_current = df_current_q["date"].dt.date.nunique()
+    sessions_previous = df_previous_q["date"].dt.date.nunique()
+
+    weekly_avg = df_12m.groupby(df_12m["date"].dt.to_period("W")).size().mean()
+
+    last_week = df_12m[
+        df_12m["date"] >= (pd.Timestamp.today() - pd.Timedelta(days=7))
+    ].shape[0]
+
+    best_recent = df_12m.sort_values("date").tail(20)["grade_score"].max()
+
+    messages = []
+
+    if sessions_current < sessions_previous:
+        messages.append("📉 Moins de séances que le trimestre précédent → attention à la régularité.")
+    else:
+        messages.append("📈 Bonne régularité ce trimestre.")
+
+    if last_week < weekly_avg * 0.6:
+        messages.append("⚡ Semaine légère → idéal pour technique ou récupération.")
+
+    if best_recent >= df_12m["grade_score"].quantile(0.9):
+        messages.append("🔥 Tu es en forme → bon moment pour tenter un projet dur.")
+
+    if len(messages) == 0:
+        messages.append("🧠 Continue à grimper propre et régulier.")
+
+    return " ".join(messages)
 
 
 # =============================
@@ -277,9 +313,8 @@ if uploaded_file:
 
 
     # =============================
-    # 🧠 COACH SIMPLE
+    # 🧠 COACH
     # =============================
-    if sessions_current < sessions_previous:
-        st.warning("📉 Moins de séances que le trimestre précédent")
-    else:
-        st.success("📈 Bonne régularité ce trimestre")
+    st.markdown("## 🧠 Un mot de ton Coach")
+
+    st.info(get_coach_message(df_12m, df_current_q, df_previous_q))
