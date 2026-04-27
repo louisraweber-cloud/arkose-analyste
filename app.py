@@ -4,7 +4,7 @@ import plotly.express as px
 
 
 # =========================================================
-# 🎯 CONFIG + HEADER PRODUIT
+# 🎯 CONFIG + HEADER
 # =========================================================
 st.set_page_config(page_title="Arkose Analyste", layout="centered")
 
@@ -50,7 +50,7 @@ if "file_uploaded" not in st.session_state:
 
 if not st.session_state.file_uploaded:
     uploaded_file = st.file_uploader(
-        "Importer ton fichier Arkose (Excel)", 
+        "Importer ton fichier Arkose (Excel)",
         type=["xlsx"]
     )
 
@@ -112,6 +112,21 @@ def to_font_grade(level, sub_level):
         return base
 
     return f"{base}{suffix}"
+
+
+# =========================================================
+# 🎨 ARKOSE COLORS
+# =========================================================
+def arkose_level_icon(level):
+    mapping = {
+        1: "🟡",
+        2: "🟢",
+        3: "🔵",
+        4: "🔴",
+        5: "⚫",
+        6: "🟣"
+    }
+    return mapping.get(int(level), "?")
 
 
 # =========================================================
@@ -327,25 +342,26 @@ if uploaded_file:
     st.plotly_chart(plot_styles(compute_styles_top20(df_12m)), use_container_width=True)
 
     # =========================================================
+    # 🧠 COACH
+    # =========================================================
+    st.markdown("## 🧠 Un mot de ton Coach")
+    st.info(get_coach_message(df_12m, df_current_q, df_previous_q))
+
+    # =========================================================
     # 🏚️ GRENIER
     # =========================================================
     st.markdown("---")
     st.markdown("## 🏚️ Grenier")
 
     with st.expander("📘 Échelle Arkose → Fontainebleau"):
-        st.markdown("""
+
+        st.markdown(f"""
 | Niveau Arkose | Barre 1 | Barre 2 | Barre 3 | Barre 4 | Barre 5 |
 | ------------- | ------- | ------- | ------- | ------- | -------- |
-| **1** | 3 | 3+ | 4A | 4A+ | 4B |
-| **2** | 4B | 4C | 5A | 5A+ | 5B |
-| **3** | 5A+ | 5B | 5B+ | 5C | 5C+ |
-| **4** | 5C+ | 6A | 6A+ | 6B | 6B+ |
-| **5** | 6B | 6B+ | 6C | 6C+ | 7A |
-| **6** | 7A | 7A+ | 7B | 7B+ | 7C / 7C+ |
+| {arkose_level_icon(1)} **1** | 3 | 3+ | 4A | 4A+ | 4B |
+| {arkose_level_icon(2)} **2** | 4B | 4C | 5A | 5A+ | 5B |
+| {arkose_level_icon(3)} **3** | 5A+ | 5B | 5B+ | 5C | 5C+ |
+| {arkose_level_icon(4)} **4** | 5C+ | 6A | 6A+ | 6B | 6B+ |
+| {arkose_level_icon(5)} **5** | 6B | 6B+ | 6C | 6C+ | 7A |
+| {arkose_level_icon(6)} **6** | 7A | 7A+ | 7B | 7B+ | 7C / 7C+ |
 """)
-
-    # =========================================================
-    # 🧠 COACH
-    # =========================================================
-    st.markdown("## 🧠 Un mot de ton Coach")
-    st.info(get_coach_message(df_12m, df_current_q, df_previous_q))
