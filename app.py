@@ -35,9 +35,9 @@ if not st.session_state.file_uploaded:
     st.markdown("""
 ### Importer tes données Arkose
 
-1. Accéder à ton compte : https://accounts.arkose.com/?userEdit=true  
+1. https://accounts.arkose.com/?userEdit=true  
 2. Se connecter  
-3. Scrolle un peu vers le bas puis clique sur **Exporter mes données**  
+3. Scroller puis cliquer sur **Exporter mes données**  
 4. Importer le fichier Excel ci-dessous  
 """)
 
@@ -78,9 +78,6 @@ def clean_data(df):
     })
 
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
-
-    df["level"] = pd.to_numeric(df["level"], errors="coerce")
-    df["sub_level"] = pd.to_numeric(df["sub_level"], errors="coerce")
 
     df["couleur des prises"] = (
         df["couleur des prises"]
@@ -133,10 +130,8 @@ def get_best_blocks(df):
     if len(df) == 0:
         return None, None
 
-    # 🏆 meilleur top
     best_all = df.loc[df["rank"].idxmax()]
 
-    # ⚡ flash
     df_flash = df[df["flashé"].astype(str).str.lower().str.strip() == "oui"]
 
     if len(df_flash) > 0:
@@ -149,7 +144,7 @@ def get_best_blocks(df):
 
 
 # =========================================================
-# 📊 STYLES (VERSION COULEUR)
+# 📊 STYLES
 # =========================================================
 def compute_styles_top20(df):
 
@@ -216,7 +211,10 @@ if st.session_state.file_uploaded:
         f"Meilleur Top {year}",
         best_all["couleur des prises"].capitalize() if best_all is not None else "N/A"
     )
-    st.caption(f"Salle : {best_all.get('salle', 'Inconnue')}")
+
+    st.caption(
+        f"Salle : {best_all['salle'] if best_all is not None and 'salle' in best_all else 'Inconnue'}"
+    )
 
     col3.metric(
         f"Meilleur Flash {year}",
@@ -224,14 +222,16 @@ if st.session_state.file_uploaded:
     )
 
     if best_flash is not None:
-        st.caption(f"Salle : {best_flash.get('salle', 'Inconnue')}")
+        st.caption(
+            f"Salle : {best_flash['salle'] if 'salle' in best_flash else 'Inconnue'}"
+        )
 
 
     # =====================================================
-    # 📊 GRAPHIQUE STYLES
+    # 📊 STYLES
     # =====================================================
     st.markdown("## Analyse des styles")
-    st.caption("Top zones de difficulté sur 12 mois")
+    st.caption("Zones de difficulté sur 12 mois")
 
     st.plotly_chart(
         px.bar(compute_styles_top20(df_12m), x="style", y="count"),
