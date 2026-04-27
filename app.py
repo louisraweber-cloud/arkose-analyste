@@ -85,10 +85,25 @@ ARKOSE_GRADE_MAP = {
 }
 
 
+# =========================================================
+# 🔧 FIX COTATION (VERSION ROBUSTE)
+# =========================================================
 def to_font_grade(color, sub_level):
+
+    if pd.isna(color) or pd.isna(sub_level):
+        return None
+
     color = str(color).strip().lower()
-    sub_level = int(sub_level)
-    return ARKOSE_GRADE_MAP.get(color, {}).get(sub_level, "?")
+
+    try:
+        sub_level = int(float(sub_level))
+    except:
+        return None
+
+    if sub_level < 1 or sub_level > 5:
+        return None
+
+    return ARKOSE_GRADE_MAP[color][sub_level]
 
 
 # =========================================================
@@ -145,15 +160,6 @@ def filter_last_12_months(df):
 # =========================================================
 # 📊 ANALYSES
 # =========================================================
-def compute_weekly_score(df):
-
-    df = df.copy()
-    df["week"] = df["date"].dt.to_period("W").dt.start_time
-    df["week"] = pd.to_datetime(df["week"])
-
-    return df.groupby("week").size().reset_index(name="count")
-
-
 def compute_styles_top20(df):
 
     df = df.copy().dropna(subset=["styles"])
@@ -270,7 +276,7 @@ if st.session_state.get("file_uploaded", False):
         col3.metric("Meilleur flash", "N/A")
 
     # =========================
-    # GRAPHE UNIQUE
+    # GRAPHE
     # =========================
     st.markdown("## Analyse des styles")
     st.caption("Top 20% des voies les plus dures sur 12 mois")
