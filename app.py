@@ -93,7 +93,7 @@ def to_font_grade(color, sub_level):
 
 
 # =========================================================
-# 🧹 CLEAN + VALIDATION
+# 🧹 CLEAN DATA
 # =========================================================
 def clean_data(df):
     df = df.copy()
@@ -110,21 +110,6 @@ def clean_data(df):
     df = df.dropna(subset=["date", "color", "sub_level"])
 
     return df
-
-
-def validate_data(df):
-
-    required_cols = ["date", "color", "sub_level"]
-
-    missing = [c for c in required_cols if c not in df.columns]
-
-    if missing:
-        return False, f"Colonnes manquantes : {missing}"
-
-    if df["date"].isna().all():
-        return False, "Aucune date valide détectée"
-
-    return True, "OK"
 
 
 # =========================================================
@@ -158,9 +143,14 @@ def filter_last_12_months(df):
 def compute_weekly_score(df):
 
     df = df.copy()
-    df["week"] = df["date"].dt.to_period("W")
 
-    return df.groupby("week").size().reset_index(name="count")
+    # FIX IMPORTANT (plus de Period -> datetime)
+    df["week"] = df["date"].dt.to_period("W").dt.start_time
+    df["week"] = pd.to_datetime(df["week"])
+
+    weekly = df.groupby("week").size().reset_index(name="count")
+
+    return weekly
 
 
 def compute_styles_top20(df):
@@ -211,8 +201,16 @@ def get_best_blocks(df):
 # 📈 VISUALISATIONS
 # =========================================================
 def plot_weekly(df):
+
     fig = px.bar(df, x="week", y="count")
-    fig.update_layout(template="simple_white", showlegend=False)
+
+    fig.update_layout(
+        template="simple_white",
+        showlegend=False,
+        xaxis_title="",
+        yaxis_title=""
+    )
+
     return fig
 
 
@@ -235,12 +233,6 @@ if st.session_state.file_uploaded:
     df = pd.read_excel(st.session_state.file)
     df = clean_data(df)
 
-    ok, msg = validate_data(df)
-
-    if not ok:
-        st.error(f"Fichier invalide : {msg}")
-        st.stop()
-
     df_current_q = filter_current_quarter(df)
     df_previous_q = filter_previous_quarter_same_period(df)
     df_12m = filter_last_12_months(df)
@@ -248,10 +240,6 @@ if st.session_state.file_uploaded:
     weekly = compute_weekly_score(df_12m)
 
     best_all, best_flash = get_best_blocks(df_12m)
-
-    if best_all is None:
-        st.warning("Pas assez de données pour calculer les blocs")
-        st.stop()
 
     # =========================
     # SYNTHÈSE
