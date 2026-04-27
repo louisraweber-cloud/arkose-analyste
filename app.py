@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import hashlib
 
 
 # =============================
@@ -48,7 +47,6 @@ def clean_data(df):
 def filter_current_quarter(df):
     today = pd.Timestamp.today()
     start = today.to_period("Q").start_time
-
     return df[(df["date"] >= start) & (df["date"] <= today)]
 
 
@@ -58,9 +56,7 @@ def filter_previous_quarter_same_period(df):
     start_current = today.to_period("Q").start_time
     start_prev = (today.to_period("Q") - 1).start_time
 
-    # durée écoulée dans le trimestre actuel
     days_offset = today - start_current
-
     end_prev = start_prev + days_offset
 
     return df[
@@ -134,41 +130,6 @@ def get_best_blocks(df):
         best_flash = None
 
     return best_all, best_flash
-
-
-# =============================
-# 🧠 COACH INTELLIGENT
-# =============================
-def get_coach_message(df_12m, df_current_q, df_previous_q):
-
-    sessions_current = df_current_q["date"].dt.date.nunique()
-    sessions_previous = df_previous_q["date"].dt.date.nunique()
-
-    weekly_avg = df_12m.groupby(df_12m["date"].dt.to_period("W")).size().mean()
-
-    last_week = df_12m[
-        df_12m["date"] >= (pd.Timestamp.today() - pd.Timedelta(days=7))
-    ].shape[0]
-
-    best_recent = df_12m.sort_values("date").tail(20)["grade_score"].max()
-
-    messages = []
-
-    if sessions_current < sessions_previous:
-        messages.append("📉 Moins de séances que le trimestre précédent → attention à la régularité.")
-    else:
-        messages.append("📈 Bonne régularité ce trimestre.")
-
-    if last_week < weekly_avg * 0.6:
-        messages.append("⚡ Semaine légère → idéal pour technique ou récupération.")
-
-    if best_recent >= df_12m["grade_score"].quantile(0.9):
-        messages.append("🔥 Tu es en forme → bon moment pour tenter un projet dur.")
-
-    if len(messages) == 0:
-        messages.append("🧠 Continue à grimper propre et régulier.")
-
-    return " ".join(messages)
 
 
 # =============================
@@ -276,7 +237,7 @@ if uploaded_file:
     col1.metric(
         f"Séances T{current_q.quarter} {current_q.year}",
         sessions_current,
-        f"{delta:+} ({pct:.0f}%) vs T{prev_q.quarter} {prev_q.year}"
+        f"{delta:+} ({pct:.0f}%) vs T{prev_q.quarter} {prev_q.year} (même période)"
     )
 
     col2.metric(
@@ -327,4 +288,4 @@ if uploaded_file:
     # =============================
     st.markdown("## 🧠 Un mot de ton Coach")
 
-    st.info(get_coach_message(df_12m, df_current_q, df_previous_q))
+    st.info("Continue à grimper propre et régulier.")
