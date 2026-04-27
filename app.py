@@ -4,9 +4,29 @@ import plotly.express as px
 
 
 # =========================================================
-# 🎯 CONFIG
+# 🎯 CONFIG + HEADER PRODUIT
 # =========================================================
 st.set_page_config(page_title="Arkose Analyste", layout="centered")
+
+st.markdown(
+    """
+    <style>
+    .reload-btn button {
+        background-color: transparent;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+        opacity: 0.4;
+        transition: all 0.2s ease;
+    }
+    .reload-btn button:hover {
+        opacity: 1;
+        transform: rotate(20deg);
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 col_title, col_button = st.columns([10, 1])
 
@@ -15,13 +35,15 @@ with col_title:
 
 with col_button:
     if "file_uploaded" in st.session_state and st.session_state.file_uploaded:
-        if st.button("🔄", help="Charger un autre fichier"):
+        st.markdown('<div class="reload-btn">', unsafe_allow_html=True)
+        if st.button("🔄", help="Recharger un fichier"):
             st.session_state.file_uploaded = False
             st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
 
 # =========================================================
-# 📂 UPLOAD (STATE)
+# 📂 UPLOAD
 # =========================================================
 if "file_uploaded" not in st.session_state:
     st.session_state.file_uploaded = False
@@ -41,7 +63,7 @@ else:
 
 
 # =========================================================
-# 🧹 DATA FUNCTIONS
+# 🧹 DATA
 # =========================================================
 def clean_data(df):
     df = df.copy()
@@ -93,7 +115,6 @@ def filter_last_12_months(df):
 # 📊 CALCULS
 # =========================================================
 def compute_weekly_score(df):
-
     df = df.copy()
     df["week"] = df["date"].dt.to_period("W")
 
@@ -108,7 +129,6 @@ def compute_weekly_score(df):
 
 
 def compute_styles_top20(df):
-
     df = df.copy()
     df = df.sort_values("grade_score", ascending=False)
 
@@ -126,7 +146,6 @@ def compute_styles_top20(df):
 
 
 def get_best_blocks(df):
-
     best_all = df.loc[df["grade_score"].idxmax()]
 
     df_flash = df[df["flashé"] == "Oui"]
@@ -140,7 +159,6 @@ def get_best_blocks(df):
 
 
 def get_coach_message(df_12m, df_current_q, df_previous_q):
-
     sessions_current = df_current_q["date"].dt.date.nunique()
     sessions_previous = df_previous_q["date"].dt.date.nunique()
 
@@ -170,7 +188,6 @@ def get_coach_message(df_12m, df_current_q, df_previous_q):
 # 📈 VISUALISATIONS
 # =========================================================
 def plot_weekly(weekly):
-
     fig = px.area(
         weekly,
         x="week",
@@ -198,7 +215,6 @@ def plot_weekly(weekly):
 
 
 def plot_styles(style_counts):
-
     fig = px.bar(style_counts, x="style", y="count")
 
     fig.update_layout(
@@ -212,7 +228,7 @@ def plot_styles(style_counts):
 
 
 # =========================================================
-# 🚀 APP LOGIC
+# 🚀 APP
 # =========================================================
 if uploaded_file:
 
@@ -227,9 +243,7 @@ if uploaded_file:
 
     best_all, best_flash = get_best_blocks(df_12m)
 
-    # =============================
     # KPI
-    # =============================
     st.markdown("### Synthèse")
 
     today = pd.Timestamp.today()
@@ -260,17 +274,13 @@ if uploaded_file:
         int(best_flash["grade_score"]) if best_flash is not None else "N/A"
     )
 
-    # =============================
-    # GRAPH
-    # =============================
+    # Graphs
     st.markdown("## Volume de la semaine")
     st.plotly_chart(plot_weekly(weekly_12m), use_container_width=True)
 
     st.markdown("## Analyse des styles")
     st.plotly_chart(plot_styles(compute_styles_top20(df_12m)), use_container_width=True)
 
-    # =============================
-    # COACH
-    # =============================
+    # Coach
     st.markdown("## 🧠 Un mot de ton Coach")
     st.info(get_coach_message(df_12m, df_current_q, df_previous_q))
