@@ -42,12 +42,16 @@ def clean_data(df):
 
 
 # =============================
-# 📅 FILTRE 12 MOIS
+# 📅 FILTRES ANNÉES
 # =============================
-def filter_last_year(df):
-    today = pd.Timestamp.today()
-    one_year_ago = today - pd.DateOffset(years=1)
-    return df[df["date"] >= one_year_ago]
+def filter_current_year(df):
+    year = pd.Timestamp.today().year
+    return df[df["date"].dt.year == year]
+
+
+def filter_previous_year(df):
+    year = pd.Timestamp.today().year - 1
+    return df[df["date"].dt.year == year]
 
 
 # =============================
@@ -63,7 +67,6 @@ def compute_weekly_score(df):
     
     weekly["week"] = weekly["week"].dt.start_time
     
-    # 📈 moyenne mobile 4 semaines
     weekly["moving_avg"] = weekly["total_score"].rolling(4).mean()
     
     return weekly
@@ -108,7 +111,6 @@ def plot_weekly(weekly):
         opacity=0.9
     )
     
-    # 📈 moyenne mobile
     fig.add_scatter(
         x=weekly["week"],
         y=weekly["moving_avg"],
@@ -137,7 +139,6 @@ def plot_weekly(weekly):
         gridcolor="rgba(0,0,0,0.05)"
     )
     
-    # 🔥 meilleure semaine
     best = weekly.loc[weekly["total_score"].idxmax()]
     
     fig.add_scatter(
@@ -193,21 +194,41 @@ if uploaded_file:
     df = pd.read_excel(uploaded_file)
     
     df = clean_data(df)
-    df = filter_last_year(df)
     
-    weekly = compute_weekly_score(df)
+    # =============================
+    # 📅 DATA ANNÉES
+    # =============================
+    df_current = filter_current_year(df)
+    df_previous = filter_previous_year(df)
+    
+    weekly = compute_weekly_score(df_current)
     
     # =============================
     # 📊 KPI
     # =============================
     st.markdown("### Synthèse")
 
+    current_year = pd.Timestamp.today().year
+
+    sessions_current = df_current["date"].dt.date.nunique()
+    sessions_previous = df_previous["date"].dt.date.nunique()
+
+    if sessions_previous > 0:
+        delta = sessions_current - sessions_previous
+        pct = (delta / sessions_previous) * 100
+    else:
+        delta = 0
+        pct = 0
+
     col1, col2, col3 = st.columns(3)
 
-    # ✅ correction importante ici
-    col1.metric("Séances", df["date"].dt.date.nunique())
+    col1.metric(
+        f"Séances {current_year}",
+        sessions_current,
+        f"{delta:+} ({pct:.0f}%) vs {current_year - 1}"
+    )
 
-    col2.metric("Volume total", int(df["grade_score"].sum()))
+    col2.metric("Volume total", int(df_current["grade_score"].sum()))
     col3.metric("Pic hebdo", int(weekly["total_score"].max()))
 
 
@@ -234,7 +255,7 @@ if uploaded_file:
         "Ce graphique montre la répartition des styles de blocs parmi les 20% des voies les plus difficiles réalisées sur la période."
     )
 
-    style_counts = compute_styles_top20(df)
+    style_counts = compute_styles_top20(df_current)
 
     fig2 = plot_styles(style_counts)
     st.plotly_chart(fig2, use_container_width=True)
