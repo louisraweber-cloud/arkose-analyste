@@ -43,25 +43,35 @@ def clean_data(df):
 
 
 # =============================
-# 📅 FILTRES
+# 📅 FILTRES TRIMESTRE (FAIR COMPARISON)
 # =============================
 def filter_current_quarter(df):
     today = pd.Timestamp.today()
     start = today.to_period("Q").start_time
+
     return df[(df["date"] >= start) & (df["date"] <= today)]
 
 
-def filter_previous_quarter(df):
+def filter_previous_quarter_same_period(df):
     today = pd.Timestamp.today()
-    current_q = today.to_period("Q")
-    prev_q = current_q - 1
+
+    start_current = today.to_period("Q").start_time
+    start_prev = (today.to_period("Q") - 1).start_time
+
+    # durée écoulée dans le trimestre actuel
+    days_offset = today - start_current
+
+    end_prev = start_prev + days_offset
 
     return df[
-        (df["date"] >= prev_q.start_time) &
-        (df["date"] <= prev_q.end_time)
+        (df["date"] >= start_prev) &
+        (df["date"] <= end_prev)
     ]
 
 
+# =============================
+# 📅 12 MOIS
+# =============================
 def filter_last_12_months(df):
     today = pd.Timestamp.today()
     one_year_ago = today - pd.DateOffset(years=1)
@@ -235,7 +245,7 @@ if uploaded_file:
     # 📅 DATA
     # =============================
     df_current_q = filter_current_quarter(df)
-    df_previous_q = filter_previous_quarter(df)
+    df_previous_q = filter_previous_quarter_same_period(df)
     df_12m = filter_last_12_months(df)
 
     weekly_12m = compute_weekly_score(df_12m)
