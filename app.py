@@ -3,17 +3,16 @@ import pandas as pd
 import plotly.express as px
 
 
-# =============================
-# 🎯 CONFIG APP
-# =============================
+# =========================================================
+# 🎯 CONFIG
+# =========================================================
 st.set_page_config(page_title="Arkose Analyste", layout="centered")
-
 st.title("Arkose Analyste")
 
 
-# =============================
-# 📂 UPLOAD (DISPARAIT APRÈS CHARGEMENT)
-# =============================
+# =========================================================
+# 📂 UPLOAD (STATE)
+# =========================================================
 if "file_uploaded" not in st.session_state:
     st.session_state.file_uploaded = False
 
@@ -35,9 +34,9 @@ else:
         st.rerun()
 
 
-# =============================
-# 🧹 NETTOYAGE
-# =============================
+# =========================================================
+# 🧹 DATA FUNCTIONS
+# =========================================================
 def clean_data(df):
     df = df.copy()
 
@@ -56,9 +55,6 @@ def clean_data(df):
     return df
 
 
-# =============================
-# 📅 TRIMESTRES (FAIR COMPARISON)
-# =============================
 def filter_current_quarter(df):
     today = pd.Timestamp.today()
     start = today.to_period("Q").start_time
@@ -80,9 +76,6 @@ def filter_previous_quarter_same_period(df):
     ]
 
 
-# =============================
-# 📅 12 MOIS
-# =============================
 def filter_last_12_months(df):
     today = pd.Timestamp.today()
     one_year_ago = today - pd.DateOffset(years=1)
@@ -90,9 +83,9 @@ def filter_last_12_months(df):
     return df[(df["date"] >= one_year_ago) & (df["date"] <= today)]
 
 
-# =============================
-# 📈 WEEKLY SCORE
-# =============================
+# =========================================================
+# 📊 CALCULS
+# =========================================================
 def compute_weekly_score(df):
 
     df = df.copy()
@@ -108,16 +101,12 @@ def compute_weekly_score(df):
     return weekly
 
 
-# =============================
-# 📊 STYLES TOP 20%
-# =============================
 def compute_styles_top20(df):
 
     df = df.copy()
-
     df = df.sort_values("grade_score", ascending=False)
-    top20 = df.head(int(len(df) * 0.2))
 
+    top20 = df.head(int(len(df) * 0.2))
     top20 = top20.dropna(subset=["styles"])
 
     styles = top20["styles"].str.split("#").explode()
@@ -130,9 +119,6 @@ def compute_styles_top20(df):
     return style_counts
 
 
-# =============================
-# 🏆 BEST BLOCKS (12M)
-# =============================
 def get_best_blocks(df):
 
     best_all = df.loc[df["grade_score"].idxmax()]
@@ -147,9 +133,6 @@ def get_best_blocks(df):
     return best_all, best_flash
 
 
-# =============================
-# 🧠 COACH
-# =============================
 def get_coach_message(df_12m, df_current_q, df_previous_q):
 
     sessions_current = df_current_q["date"].dt.date.nunique()
@@ -177,9 +160,54 @@ def get_coach_message(df_12m, df_current_q, df_previous_q):
     return " ".join(messages)
 
 
-# =============================
-# 🚀 APP
-# =============================
+# =========================================================
+# 📈 VISUALISATIONS
+# =========================================================
+def plot_weekly(weekly):
+
+    fig = px.area(
+        weekly,
+        x="week",
+        y="total_score",
+        line_shape="spline"
+    )
+
+    fig.update_traces(line=dict(width=3), opacity=0.9)
+
+    fig.add_scatter(
+        x=weekly["week"],
+        y=weekly["moving_avg"],
+        mode="lines",
+        line=dict(width=2, dash="dash")
+    )
+
+    fig.update_layout(
+        template="simple_white",
+        yaxis_title="",
+        xaxis_title="",
+        showlegend=False
+    )
+
+    return fig
+
+
+def plot_styles(style_counts):
+
+    fig = px.bar(style_counts, x="style", y="count")
+
+    fig.update_layout(
+        template="simple_white",
+        xaxis_title="",
+        yaxis_title="",
+        showlegend=False
+    )
+
+    return fig
+
+
+# =========================================================
+# 🚀 APP LOGIC
+# =========================================================
 if uploaded_file:
 
     df = pd.read_excel(uploaded_file)
@@ -194,7 +222,7 @@ if uploaded_file:
     best_all, best_flash = get_best_blocks(df_12m)
 
     # =============================
-    # 📊 KPI
+    # KPI
     # =============================
     st.markdown("### Synthèse")
 
@@ -205,12 +233,8 @@ if uploaded_file:
     sessions_current = df_current_q["date"].dt.date.nunique()
     sessions_previous = df_previous_q["date"].dt.date.nunique()
 
-    if sessions_previous > 0:
-        delta = sessions_current - sessions_previous
-        pct = (delta / sessions_previous) * 100
-    else:
-        delta = 0
-        pct = 0
+    delta = sessions_current - sessions_previous if sessions_previous > 0 else 0
+    pct = (delta / sessions_previous * 100) if sessions_previous > 0 else 0
 
     arrow = "↑" if delta >= 0 else "↓"
 
@@ -223,49 +247,24 @@ if uploaded_file:
         delta_color="normal"
     )
 
-    col2.metric(
-        "Bloc le plus dur (12 mois)",
-        int(best_all["grade_score"])
+    col2.metric("Bloc le plus dur", int(best_all["grade_score"]))
+
+    col3.metric(
+        "Meilleur flash",
+        int(best_flash["grade_score"]) if best_flash is not None else "N/A"
     )
 
-    if best_flash is not None:
-        col3.metric(
-            "Meilleur flash (12 mois)",
-            int(best_flash["grade_score"])
-        )
-    else:
-        col3.metric(
-            "Meilleur flash (12 mois)",
-            "N/A"
-        )
-
     # =============================
-    # 📊 GRAPH 1
+    # GRAPH
     # =============================
     st.markdown("## Volume de la semaine")
-
-    st.caption(
-        "Volume = somme des difficultés des blocs réalisés chaque semaine (sur les 12 derniers mois)."
-    )
-
     st.plotly_chart(plot_weekly(weekly_12m), use_container_width=True)
 
-    # =============================
-    # 📊 GRAPH 2
-    # =============================
     st.markdown("## Analyse des styles")
-
-    st.caption(
-        "Répartition des styles parmi les 20% des voies les plus difficiles sur les 12 derniers mois."
-    )
-
-    style_counts = compute_styles_top20(df_12m)
-
-    st.plotly_chart(plot_styles(style_counts), use_container_width=True)
+    st.plotly_chart(plot_styles(compute_styles_top20(df_12m)), use_container_width=True)
 
     # =============================
-    # 🧠 COACH
+    # COACH
     # =============================
     st.markdown("## 🧠 Un mot de ton Coach")
-
     st.info(get_coach_message(df_12m, df_current_q, df_previous_q))
