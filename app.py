@@ -1,14 +1,12 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import hashlib
 
 
 # =============================
 # 🎯 CONFIG APP
 # =============================
 st.set_page_config(page_title="Arkose Analyste", layout="centered")
-
 st.title("Arkose Analyste")
 
 
@@ -16,7 +14,7 @@ st.title("Arkose Analyste")
 # 📂 UPLOAD
 # =============================
 uploaded_file = st.file_uploader(
-    "Importer ton fichier Arkose (Excel)", 
+    "Importer ton fichier Arkose (Excel)",
     type=["xlsx"]
 )
 
@@ -43,7 +41,7 @@ def clean_data(df):
 
 
 # =============================
-# 📅 TRIMESTRES (FAIR)
+# 📅 TRIMESTRES (FAIR COMPARISON)
 # =============================
 def filter_current_quarter(df):
     today = pd.Timestamp.today()
@@ -80,7 +78,6 @@ def filter_last_12_months(df):
 # 📈 WEEKLY SCORE
 # =============================
 def compute_weekly_score(df):
-
     df = df.copy()
     df["week"] = df["date"].dt.to_period("W")
 
@@ -102,9 +99,19 @@ if uploaded_file:
     df = pd.read_excel(uploaded_file)
     df = clean_data(df)
 
+    # =============================
+    # 📅 DATASETS
+    # =============================
     df_current_q = filter_current_quarter(df)
     df_previous_q = filter_previous_quarter_same_period(df)
     df_12m = filter_last_12_months(df)
+
+    weekly_12m = compute_weekly_score(df_12m)
+
+    # =============================
+    # 📊 KPI SÉANCES
+    # =============================
+    st.markdown("### Synthèse")
 
     today = pd.Timestamp.today()
     current_q = today.to_period("Q")
@@ -120,11 +127,6 @@ if uploaded_file:
         delta = 0
         pct = 0
 
-    # =============================
-    # 📊 KPI
-    # =============================
-    st.markdown("### Synthèse")
-
     arrow = "↑" if delta >= 0 else "↓"
 
     col1, col2, col3 = st.columns(3)
@@ -135,3 +137,59 @@ if uploaded_file:
         f"{arrow} {delta:+} ({pct:.0f}%) vs T{prev_q.quarter} {prev_q.year}",
         delta_color="normal"
     )
+
+
+    # =============================
+    # 📊 GRAPH 1 - VOLUME
+    # =============================
+    st.markdown("## Volume de la semaine")
+
+    st.caption(
+        "Volume = somme des difficultés des blocs réalisés chaque semaine (12 derniers mois)."
+    )
+
+    fig = px.area(
+        weekly_12m,
+        x="week",
+        y="total_score",
+        line_shape="spline"
+    )
+
+    fig.add_scatter(
+        x=weekly_12m["week"],
+        y=weekly_12m["moving_avg"],
+        mode="lines",
+        line=dict(width=2, dash="dash"),
+        name="Moyenne 4 semaines"
+    )
+
+    fig.update_layout(
+        template="simple_white",
+        yaxis_title="",
+        xaxis_title="",
+        showlegend=False
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+    # =============================
+    # 🧠 COACH SIMPLE
+    # =============================
+    st.markdown("## 🧠 Un mot de ton Coach")
+
+    messages = []
+
+    weekly_avg = weekly_12m["total_score"].mean()
+    last_week = weekly_12m.tail(1)["total_score"].values[0] if len(weekly_12m) > 0 else 0
+
+    if sessions_current < sessions_previous:
+        messages.append("📉 Moins de séances que le trimestre précédent.")
+
+    if last_week < weekly_avg * 0.6:
+        messages.append("⚡ Semaine légère → récup ou technique.")
+
+    if len(messages) == 0:
+        messages.append("🧠 Bonne dynamique, continue comme ça.")
+
+    st.info(" ".join(messages))
