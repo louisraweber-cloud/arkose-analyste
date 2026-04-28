@@ -368,9 +368,9 @@ if st.session_state.get("file_uploaded", False):
 |  | 1 barre | 2 barres | 3 barres | 4 barres | 5 barres |
 | - | ------- | -------- | -------- | -------- | -------- |
 | 🟡 | 3 | 3+ | 4A | 4A+ | 4B |
-| 🟢 | 4B | 4C | 5A | 5A+ | 5B |
-| 🔵 | 5A+ | 5B | 5B+ | 5C | 5C+ |
-| 🔴 | 5C+ | 6A | 6A+ | 6B | 6B+ |
-| ⚫ | 6B | 6B+ | 6C | 6C+ | 7A |
-| 🟣 | 7A | 7A+ | 7B | 7B+ | 7C / 7C+ |
+| 🟢 | 4B+ | 4C | 5A | 5A+ | 5A+ |
+| 🔵 | 5B | 5B | 5B+ | 5C | 5C |
+| 🔴 | 5C+ | 6A | 6A+ | 6B | 6B |
+| ⚫ | 6B+ | 6B+ | 6C | 6C+ | 6C+ |
+| 🟣 | 7A | 7A+ | 7B | 7B+ | 7C |
 """)
