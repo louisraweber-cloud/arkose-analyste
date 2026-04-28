@@ -360,9 +360,9 @@ if st.session_state.get("file_uploaded", False):
     )
 
     # =========================
-    # GRENIER
+    # Annexe
     # =========================
-    st.markdown("## Grenier")
+    st.markdown("## Annexe")
 
     st.markdown("""
 |  | 1 barre | 2 barres | 3 barres | 4 barres | 5 barres |
