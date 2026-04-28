@@ -85,23 +85,23 @@ ARKOSE_GRADE_MAP = {
 }
 
 
-# =========================================================
-# 🔧 FIX COTATION (VERSION ROBUSTE)
-# =========================================================
 def to_font_grade(color, sub_level):
 
     if pd.isna(color) or pd.isna(sub_level):
-        return None
+        return "N/A"
 
     color = str(color).strip().lower()
 
     try:
         sub_level = int(float(sub_level))
     except:
-        return None
+        return "N/A"
 
-    if sub_level < 1 or sub_level > 5:
-        return None
+    if color not in ARKOSE_GRADE_MAP:
+        return "N/A"
+
+    if sub_level not in ARKOSE_GRADE_MAP[color]:
+        return "N/A"
 
     return ARKOSE_GRADE_MAP[color][sub_level]
 
@@ -143,18 +143,25 @@ def filter_current_quarter(df):
 
 def filter_previous_quarter_same_period(df):
     today = pd.Timestamp.today()
+
     start_current = today.to_period("Q").start_time
     start_prev = (today.to_period("Q") - 1).start_time
 
     offset = today - start_current
     end_prev = start_prev + offset
 
-    return df[(df["date"] >= start_prev) & (df["date"] <= end_prev)]
+    return df[
+        (df["date"] >= start_prev) &
+        (df["date"] <= end_prev)
+    ]
 
 
 def filter_last_12_months(df):
     today = pd.Timestamp.today()
-    return df[df["date"] >= (today - pd.DateOffset(years=1))]
+
+    return df[
+        df["date"] >= (today - pd.DateOffset(years=1))
+    ]
 
 
 # =========================================================
@@ -213,7 +220,11 @@ def plot_styles(df):
         return px.bar(title="Aucune donnée")
 
     fig = px.bar(df, x="style", y="count")
-    fig.update_layout(template="simple_white", showlegend=False)
+
+    fig.update_layout(
+        template="simple_white",
+        showlegend=False
+    )
 
     return fig
 
@@ -247,17 +258,28 @@ if st.session_state.get("file_uploaded", False):
     if previous_sessions > 0:
         delta = current_sessions - previous_sessions
         pct = (delta / previous_sessions) * 100
-        delta_text = f"{delta:+} ({pct:.0f}%) vs trimestre précédent"
+
+        delta_text = (
+            f"{delta:+} ({pct:.0f}%) vs trimestre précédent"
+        )
+
     else:
         delta_text = "vs trimestre précédent"
 
     col1, col2, col3 = st.columns(3)
 
-    col1.metric("Séances", current_sessions, delta_text)
+    col1.metric(
+        "Séances",
+        current_sessions,
+        delta_text
+    )
 
     col2.metric(
         "Bloc le plus dur",
-        to_font_grade(best_all["color"], best_all["sub_level"])
+        to_font_grade(
+            best_all["color"],
+            best_all["sub_level"]
+        )
     )
 
     col2.caption(
@@ -265,13 +287,19 @@ if st.session_state.get("file_uploaded", False):
     )
 
     if best_flash is not None:
+
         col3.metric(
             "Meilleur flash",
-            to_font_grade(best_flash["color"], best_flash["sub_level"])
+            to_font_grade(
+                best_flash["color"],
+                best_flash["sub_level"]
+            )
         )
+
         col3.caption(
             f"Salle : {format_salle(best_flash['salle']) if 'salle' in best_flash else 'N/A'}"
         )
+
     else:
         col3.metric("Meilleur flash", "N/A")
 
@@ -279,7 +307,10 @@ if st.session_state.get("file_uploaded", False):
     # GRAPHE
     # =========================
     st.markdown("## Analyse des styles")
-    st.caption("Top 20% des voies les plus dures sur 12 mois")
+
+    st.caption(
+        "Top 20% des voies les plus dures sur 12 mois"
+    )
 
     st.plotly_chart(
         plot_styles(compute_styles_top20(df_12m)),
